@@ -17,6 +17,7 @@ async function main(): Promise<void> {
     leaseSeconds: config.workerLeaseS,
     ollamaUrl: config.ollamaUrl,
     modelTimeoutMs: config.modelTimeoutMs,
+    defaultModel: config.defaultModel,
     workspaceDir: config.workspaceDir,
   });
 

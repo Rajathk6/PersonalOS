@@ -139,3 +139,9 @@ Context: Tools needed real safety without a UI for approvals yet.
 Decision: (1) Filesystem tools jailed to WORKSPACE_DIR via resolveInside prefix check, enforced in the tool AND the verdict (defense in depth); outside reads → Confirm, outside deletes → Denied. (2) Confirm verdicts never execute — executor returns CONFIRMATION_REQUIRED; durable approval queue waits for scheduler/phone phases. (3) Shell has a denylist enforced twice (policy + tool itself); everything else shell → Confirm. (4) web.fetch capped 1MB/30s with literal-IP private-range blocks (hostname DNS resolution guard deferred, documented). (5) Every executor path — including unknown-tool probes — writes an audit row.
 Why: no silent permissions, no fake approvals, no unbounded downloads on 1Mbps.
 Consequence: Phase 4 planner calls tools only through ToolExecutor; POST /tools execute endpoint arrives with the approval queue, not before.
+
+## 2026-10-09 — Phase 4 role calls (tiny prompts, tasks-not-requests, verify-waits)
+Context: 3B on CPU is slow and a weak narrator; requests must stay fast.
+Decision: (1) Planner/verifier prompts are minimal with JSON-only instruction + extract-first-{...} + exactly 1 retry. (2) /agent/run and /agent/verify only enqueue — all LLM work happens in worker handlers. (3) agent.verify on a non-done target fails retryable (VERIFY_EARLY); proper dependency-wait arrives Phase 5. (4) Router default: configured DEFAULT_MODEL wins ties after hint filtering.
+Why: 195s planner + 180s verifier calls would destroy request latency; retries are bounded so a confused model fails loudly instead of looping.
+Consequence: Phase 5 scheduler owns delayed/dependent execution; planner SYSTEM prompt must be updated as new task types land.
