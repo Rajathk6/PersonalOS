@@ -24,3 +24,14 @@
 ## 2026-10-08 — Forks answered, Phase 0 unblocked
 - User picks: API token auth, Docker PG, reminders demo, laptop-only; old phone = future status/approval display (Phase 9), NOT a Pi replacement. All recorded in docs/DECISIONS.md (11 entries total).
 - Next: Phase 0 Bundle 0A (scaffolding: workspaces, TS strict, Express boot, env config, pino, health, docker-compose PG16, Prisma init, token middleware).
+
+## 2026-10-08 — SDLC adopted: develop + feature branches, main frozen for releases
+- Created `develop` (from main); all future work rides `feature/*` → PR → `develop`; `main` takes tagged releases only. Rules + test cycles in docs/WORKFLOW.md; CI (install→typecheck→lint→test) on every PR in .github/workflows/ci.yml.
+- This branch (`feature/branching-workflow`) carries WORKFLOW.md + CI + decision log updates → PR into develop.
+
+## 2026-10-08 — Phase 0 Bundle 0A merged (PR #1 → develop)
+- Scope: workspaces, TS strict, eslint flat, Express boot (zod env, pino, Bearer auth, honest /health), docker-compose PG16, Prisma schema + initial migration.
+- Fixes during verification (all recorded in DECISIONS.md): prisma pinned v6 (RC8 dropped `migrate`), PG_PORT escape hatch (system PG owns 5432), .env fallback for `npm -w` cwd.
+- Evidence: typecheck ✅ lint ✅ test ✅ (no tests yet, passWithNoTests); migrate applied (tasks/task_steps/workers/scheduled_jobs/audit_log); live: /health 200, no-token 401, wrong-token 401, good-token 404.
+- `main` untouched since Phase -1 docs — first release tag comes after 0B+0C.
+- Next: Phase 0 Bundle 0B (contracts: ModelProvider/Tool/Capability/Permission types + registries + Zod).
