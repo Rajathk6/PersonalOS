@@ -1,4 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import type { RunningService } from "./bootstrap.js";
 
@@ -39,6 +42,7 @@ describe.skipIf(!TEST_URL)("task routes + worker slice", () => {
       leaseSeconds: 30,
       ollamaUrl: "http://127.0.0.1:1",
       modelTimeoutMs: 1000,
+      workspaceDir: mkdtempSync(path.join(tmpdir(), "pos-test-ws-")),
     });
     base = `http://127.0.0.1:${svc.port}`;
   });

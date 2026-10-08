@@ -69,6 +69,11 @@
 - Tests frozen per directive: existing suites stay green, no new test work until prototype.
 - Next: Phase 3 — tools (fs/web/shell/git) behind the permission wall.
 
+## 2026-10-09 — Phase 3 merged (PR #10 → develop)
+- Scope: @personalos/tools — DefaultPermissionEngine + policy table (auto/ask/deny, destructive denylist), ToolRegistry, ToolExecutor (verdict gate, CONFIRMATION_REQUIRED parking, audit-everything), fs (sandbox-jailed read/write/delete), web.fetch (1MB/30s caps, private-IP blocks), shell.execute (double-enforced denylist), git status/log; api wiring (WORKSPACE_DIR, registry, audit sink, GET /tools).
+- Evidence: typecheck ✅ lint ✅ 46/46 ✅ (existing suites, per frozen-tests rule) + LIVE 10/10 executor paths (write/read/escape-refusal/delete-gate/shell-gate/destructive-deny/fetch/block/git/unknown-tool, all audited).
+- Next: Phase 4 — planner/executor/verifier roles (first real LLM caller through the wall).
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)

@@ -27,6 +27,8 @@ const EnvSchema = z.object({
   OLLAMA_URL: z.string().url().default("http://127.0.0.1:11434"),
   DEFAULT_MODEL: z.string().min(1).default("qwen2.5:3b"),
   MODEL_TIMEOUT_MS: z.coerce.number().int().positive().default(300000),
+  // Tool sandbox root (Phase 3): filesystem tools cannot escape this dir.
+  WORKSPACE_DIR: z.string().min(1).default("workspace"),
   NODE_ENV: z.string().default("development"),
 });
 
@@ -43,6 +45,7 @@ export interface Config {
   ollamaUrl: string;
   defaultModel: string;
   modelTimeoutMs: number;
+  workspaceDir: string;
   nodeEnv: string;
   isProduction: boolean;
 }
@@ -68,6 +71,7 @@ function loadConfig(): Config {
     ollamaUrl: env.OLLAMA_URL,
     defaultModel: env.DEFAULT_MODEL,
     modelTimeoutMs: env.MODEL_TIMEOUT_MS,
+    workspaceDir: env.WORKSPACE_DIR,
     nodeEnv: env.NODE_ENV,
     isProduction: env.NODE_ENV === "production",
   };
