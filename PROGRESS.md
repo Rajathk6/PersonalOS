@@ -63,6 +63,12 @@
 - This proves the Phase 1 exit criterion: power loss never destroys persistent work; overdue work resumes on boot.
 - Next: release v0.2 to main, then Phase 2 (Ollama behind ModelProvider — zero direct imports outside provider).
 
+## 2026-10-08 — Phase 2 merged (PR #9 → develop)
+- Scope: @personalos/models — OllamaProvider (sole HTTP speaker, timeout/abort/mapped errors, maxTokens→num_predict), ModelRegistry, route() hints, qwen2.5:3b catalog entry; api config (OLLAMA_URL/DEFAULT_MODEL/MODEL_TIMEOUT_MS) + bootstrap registration + /health models list; worker tick crash barrier (onTaskError) from a real unhandled-rejection find.
+- Evidence: typecheck ✅ lint ✅ 46/46 ✅; grep gate (only provider contains /api/chat); LIVE: routed qwen2.5:3b via registry, real generation returned (129s cold / 99s warm — slow CPU inference recorded, timeout default raised).
+- Tests frozen per directive: existing suites stay green, no new test work until prototype.
+- Next: Phase 3 — tools (fs/web/shell/git) behind the permission wall.
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)

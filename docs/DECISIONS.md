@@ -121,3 +121,15 @@ Context: CI (typecheck+lint+test on PRs + postgres service) was costing more att
 Decision: deleted .github/workflows/ci.yml entirely. Verification stays manual per-bundle (typecheck+lint+test+runtime evidence pasted in PRs) until the first prototype (Phase 1 reminders working) is done, then CI returns in one small PR.
 Why: prototype speed now, automation when the surface stabilizes.
 Consequence: PRs #6+ merge on human/agent-verified evidence only; re-add CI before Phase 2.
+
+## 2026-10-08 — Phase 2 model reality (qwen2.5:3b live on CPU)
+Context: Ollama 0.5.4 installed to ~/bin (no sudo), serving on 127.0.0.1:11434 CPU-only; qwen2.5:3b pulled (~1.9GB in ~10 min at ~4MB/s — dongle faster than feared).
+Decision: provider + registry + router built behind ADR-003 wall (grep gate: only provider touches /api/chat; endpoint lives in config). MODEL_TIMEOUT_MS default 300000 (first generation took 129s cold).
+Why: cold load + CPU inference is slow (~99s even warm for a short reply); 3B instruction-following is weak for exact-format tasks.
+Consequence: LLM stays off the critical path — rare, short, async worker tasks only; deterministic code paths preferred (already the architecture); Phase 4 prompts must be short with low maxTokens; num_predict passthrough added but cap behavior needs a later look.
+
+## 2026-10-08 — Tests frozen at current coverage until prototype (user directive)
+Context: User said stop spending time on tests; focus on development.
+Decision: no new tests, no repeated runs per step. Existing suites (46 tests) stay and must keep passing on bundle verification, but verification = typecheck + lint + one test run per bundle, nothing more.
+Why: prototype speed; the suites already cover contracts/queue/recovery/routes/provider.
+Consequence: Phase 3+ bundles ship with code + docs + one verification pass; test expansion resumes post-prototype.

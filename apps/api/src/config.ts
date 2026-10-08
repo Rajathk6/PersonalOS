@@ -22,6 +22,11 @@ const EnvSchema = z.object({
   WORKER_ENABLED: z.enum(["true", "false"]).default("true").transform((v) => v === "true"),
   // No hard-coded machine identity: default is the host's own hostname.
   WORKER_ID: z.string().default(os.hostname()),
+  // Model wiring (Phase 2): endpoint + default model are config, so a future
+  // Pi coordinator or cloud provider needs no code change to take over.
+  OLLAMA_URL: z.string().url().default("http://127.0.0.1:11434"),
+  DEFAULT_MODEL: z.string().min(1).default("qwen2.5:3b"),
+  MODEL_TIMEOUT_MS: z.coerce.number().int().positive().default(300000),
   NODE_ENV: z.string().default("development"),
 });
 
@@ -35,6 +40,9 @@ export interface Config {
   workerLeaseS: number;
   workerEnabled: boolean;
   workerId: string;
+  ollamaUrl: string;
+  defaultModel: string;
+  modelTimeoutMs: number;
   nodeEnv: string;
   isProduction: boolean;
 }
@@ -57,6 +65,9 @@ function loadConfig(): Config {
     workerLeaseS: env.WORKER_LEASE_S,
     workerEnabled: env.WORKER_ENABLED,
     workerId: env.WORKER_ID,
+    ollamaUrl: env.OLLAMA_URL,
+    defaultModel: env.DEFAULT_MODEL,
+    modelTimeoutMs: env.MODEL_TIMEOUT_MS,
     nodeEnv: env.NODE_ENV,
     isProduction: env.NODE_ENV === "production",
   };
