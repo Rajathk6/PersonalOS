@@ -159,6 +159,11 @@ export class TaskRepository {
     return rows.map(toContractTask);
   }
 
+  async listRecent(limit: number, db: Db = this.db): Promise<Task[]> {
+    const rows = await db.task.findMany({ orderBy: { createdAt: "desc" }, take: limit });
+    return rows.map(toContractTask);
+  }
+
   private async audit(db: Db, taskId: string, action: string, detail: Record<string, unknown>): Promise<void> {
     await db.auditLog.create({
       data: { who: "task-store", action, taskId, result: "ok", detail: detail as Prisma.InputJsonValue },
