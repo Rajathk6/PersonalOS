@@ -47,3 +47,10 @@
 - Subagent attempt returned empty (no files); built directly instead — recorded as a process note, not a decision.
 - Evidence: typecheck ✅ lint ✅ 30/30 tests ✅ (16 contracts + 4 transitions + 3 worker + 7 real-PG integration: lease skip, capability match, crash→redelivery retryCount+1, retry exhaustion, idempotency, network parking, missing-handler fail-fast). Test DB empty after runs; dev DB untouched.
 - Next: release v0.1 to main (Phase 0 milestone), then Phase 1 (intent→plan→task→worker→result + reminders demo + restart-recovery gate).
+
+## 2026-10-08 — v0.1 released to main (on main: full gate re-run + docker-restart survival; tagged v0.1; will sync back to develop after this merge).
+
+## 2026-10-08 — Phase 1A merged (PR #6 → develop)
+- Scope: app factory + bootstrap (recover→serve→work), task routes (POST/GET/list/cancel with 201/400/404/409 mapping), reminder.send handler (log channel), WORKER_ENABLED/WORKER_ID env (hostname default), live-db /health.
+- Evidence: typecheck ✅ lint ✅ 36/36 tests ✅ (6 new slice tests: create+read, auth/validation, reminder queued→done with output, cancel + 409 on done, state-filtered list, health). Both DBs empty after runs.
+- Next: Phase 1B — real reminders demo + process-kill (kill -9) restart gate with a future-dated reminder.
