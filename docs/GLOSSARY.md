@@ -1,0 +1,34 @@
+# GLOSSARY — plain English for a newcomer
+
+- orchestrator: the coordinator that turns your request into a plan and hands out work; it doesn't do the work itself.
+- capability: a plug-in domain (finance, jobs, reminders) that adds actions and screens without rewiring the core.
+- provider: the interchangeable wrapper around a model (Ollama, llama.cpp, OpenRouter) so code never talks to one model directly.
+- router: the chooser that picks which model to use based on speed, cost, privacy, and job type.
+- worker: a background process that picks up tasks from the queue and runs them.
+- lease: a temporary "I'm working on this" lock a worker holds; if it expires, someone else may take over.
+- checkpoint: a saved "I got this far" note so a task can resume instead of restarting.
+- catch-up: on reboot, doing one smart "everything since you were gone" job instead of replaying every missed one.
+- idempotency: designing actions so doing them twice has the same effect as once (safe retries).
+- provenance: the record of where a fact or result came from and what produced it.
+- pgvector: a Postgres add-on for meaning-based ("find similar") search; only used where it earns its keep.
+- task: one durable unit of work that survives restarts.
+- step: one stage inside a task (plan, do, check); each step is saved separately.
+- workflow: a task broken into ordered steps with saved inputs, outputs, and progress.
+- queue: the database table of waiting tasks that workers pull from.
+- scheduler: the timekeeper that creates tasks on schedules, deadlines, or events.
+- permission engine: the gatekeeper that says Allowed, Ask-first, or Denied for every tool use.
+- tool: an approved action the system can take (search web, write file, send notification).
+- tool registry: the list of all available tools plus their risk level and permission needs.
+- model registry: the list of available models plus what each can do, cost, and speed.
+- capability registry: the list of installed plug-ins and whether each is on or off.
+- worker registry: the list of known workers, what each can do, and when each last checked in.
+- heartbeat: a worker's regular "I'm still alive" ping; silence means it's gone.
+- retry: trying a failed step again, with a limit so it can't loop forever.
+- audit log: the append-only diary of who did what, what the permission decision was, and what happened.
+- event: a broadcast note like "task finished" or "power restored" that plug-ins can listen for.
+- working memory: what the current task needs to remember right now.
+- episodic memory: what happened before (past events and outcomes).
+- semantic memory: general knowledge that stays true over time.
+- user memory: stable facts about you (preferences, habits) the system should keep.
+- procedural memory: how standard jobs are done (the reusable how-to).
+- task memory: open loops — unfinished goals, their progress, and what's blocking them.

@@ -1,0 +1,35 @@
+# PersonalOS Roadmap (phase-by-phase, bundled verification)
+
+> Verification rule (per user): bundle tasks, verify once per bundle, rework or move on. No per-step testing spam.
+
+## Phase -1 — Architecture [IN PROGRESS]
+- [x] Spec extracted once → `.knowledge/SPEC_FULL.txt` + `.knowledge/NORTH_STAR.md`
+- [ ] Freeze module boundaries + interfaces (Core/Task/Scheduler/Queue/Worker/Model/Tool/Capability/Permission/Memory/Event)
+- [ ] ADRs 001–011 written
+- [ ] Repo skeleton + TS strict + lint + config/logging conventions
+- VERIFY: `npm run typecheck && npm run lint` green, interfaces import without cycles
+
+## Phase 0 — Minimal Platform Skeleton [NEXT]
+Bundle 0A (scaffolding): monorepo layout, Express API boot, config (env, no hard-coded URLs/models/schedules), pino logging, health endpoint, Docker Compose (PG16), Prisma setup
+Bundle 0B (contracts): `ModelProvider`, `Tool`, `Capability`, `PermissionEngine`, `Task` types + registries (in-memory, PG-persisted later) + Zod validation
+Bundle 0C (persistence): Task model + repository + state machine (created→queued→running→done/failed/cancelled + waiting_for_network) + PG-backed queue table + basic worker loop (poll → execute → persist result)
+- VERIFY (once): API boots, creates task via POST, worker picks it up, survives `docker restart db` + process kill (task recoverable), typecheck+lint+vitest green
+
+## Phase 1 — Minimal Autonomous Core
+Intent → Planner → Task → Worker → Result → persist. One demo flow (e.g. "remind me" / echo-task with planner stub). Restart-recovery test mandatory before new features.
+
+## Phase 2 — Local Model (Ollama behind provider ONLY; grep must show zero direct ollama imports outside provider)
+
+## Phase 3 — Tools (fs/web/shell/git/notify, all behind permissions)
+
+## Phase 4 — Planner/Executor/Verifier roles
+
+## Phase 5 — Scheduler + Queue (recurring/delay/retry/catch-up semantic; simulated power-loss test)
+
+## Phase 6 — Memory (6 types, selective indexing)
+
+## Phase 7 — Capability system + first real verticals (finance, jobs monitor) built AS capabilities
+
+## Phases 8–12 — Multi-node → Phone → Model ecosystem → Capability Builder → Distribution image
+
+Each phase gets exactly one VERIFY bundle. Quality > quantity: small correct change, clean boundaries, persisted state.

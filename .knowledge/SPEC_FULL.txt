@@ -1,0 +1,662 @@
+PersonalOS
+Complete Architecture, Product, Engineering, and Evolution Specification for OpenCode
+Version: Comprehensive design baseline • Purpose: implementation guidance and long-term architectural north star
+This document consolidates the complete PersonalOS discussion: product intent, architecture, extensibility, model routing, multi-node execution, offline/power recovery, permissions, personal-data verticals, rejected alternatives, implementation phases, and long-term evolution.
+1. Purpose
+Build PersonalOS as a serious, extensible, local-first personal AI operating system/platform. It is not a toy chatbot, a single autonomous agent, or a collection of unrelated scripts.
+Understand high-level goals from natural language.
+Research and reason about goals.
+Plan and execute multi-step work.
+Remember relevant information across time.
+Schedule and follow up on work.
+Interact with external tools and services.
+Manage structured personal information.
+Monitor changing external information.
+Coordinate multiple AI/model providers.
+Distribute work across multiple computers.
+Recover from power/network interruptions.
+Acquire new capabilities without rewriting the core.
+Discover and integrate new models/providers.
+Expose the system through phone, browser, CLI, voice, or other clients.
+The system must be designed so that future capabilities are not limited by what is known today.
+2. Fundamental Product Concept
+PersonalOS is an operating environment for a person's goals, information, tasks, AI agents, tools, memory, and computing resources.
+It is not initially a replacement for Linux, Windows, or another kernel-level operating system. The underlying OS continues to manage CPU, memory, storage, networking, drivers, and processes.
+Physical Hardware      ↓Linux / Operating System      ↓PersonalOS Runtime      ↓PersonalOS Core      ↓Capabilities / Agents / Tools / Memory / Tasks      ↓User Interfaces
+Eventually PersonalOS may be packaged as a Linux-based appliance/distribution for a Raspberry Pi, mini PC, or dedicated home server. Do not begin by building a custom OS kernel or Linux distribution.
+3. Core Product Philosophy
+PersonalOS should behave as though it has persistent identity, memory, tasks, goals, knowledge, workflows, tools, models, and computational workers.
+The intended interaction is high-level goal setting. For example: “I want to become job-ready for backend development.” The system should eventually infer the research, planning, scheduling, teaching, evaluation, adaptation, and memory work needed to pursue that objective.
+4. Do Not Build a Single Super-Agent
+User ↓Intent / Request Layer ↓Orchestrator ↓Planning ↓Capabilities / Agents / Tools ↓Verification ↓Persistent State + Memory ↓Scheduler / Follow-up
+Planner
+Researcher
+Executor
+Coder
+Analyst
+Critic
+Verifier
+Memory Agent
+Coordinator
+These are logical roles, not necessarily separate running models. Initially several roles can use the same local model. Do not start multiple heavyweight LLM processes merely to create a multi-agent appearance.
+Why the single super-agent approach is rejected
+Prompts become enormous.
+Capabilities become tightly coupled.
+Testing becomes difficult.
+Permissions become difficult to reason about.
+Failures become difficult to isolate.
+Adding a new vertical requires modifying core reasoning.
+Model replacement becomes difficult.
+Task recovery becomes difficult.
+Long-running workflows become fragile.
+Decision: use a central orchestrator with modular capabilities and logical agent roles.
+5. Hardware and Real-World Constraints
+Initial machine: Intel i7 11th-generation laptop.
+12 GB RAM.
+Intel integrated Iris graphics.
+1 TB SSD.
+Linux.
+No NVIDIA GPU.
+Initial software budget: ₹0.
+Airtel dongle with roughly 1 Mbps practical bandwidth.
+Electricity can unexpectedly go out.
+Local quantized LLMs are the primary initial AI path. Small 3B models are easiest; 7B/8B models are practical depending on quantization; 14B may be possible but substantially slower; very large models are not appropriate for this hardware.
+6. Internet and Power Are Environmental Conditions
+Do not assume continuous internet, continuous electricity, continuous laptop availability, or continuous network availability.
+Power loss and internet loss are normal operational conditions, not exceptional application failures. Important state must be persisted so the system can recover.
+7. Power-Loss Recovery
+Machine boots ↓PersonalOS starts ↓Database opens ↓Persistent state recovered ↓Scheduler recovers ↓Queue recovers ↓Workers register ↓Pending tasks inspected ↓Catch-up policy evaluated ↓Appropriate work resumes
+A task must never exist only inside an LLM context. Important task state, checkpoints, outputs, retries, and dependencies must be persisted.
+8. Catch-Up Semantics
+Do not blindly replay every missed scheduled run.
+Daily government-job monitor08:00 every daySystem is offline for 3 days.On recovery:    last successful checkpoint = Oct 4    current date = Oct 8Preferred behavior:    perform one catch-up scan covering changes since Oct 4    deduplicate results    update checkpoint
+Recurring tasks need a semantic catch-up policy, last successful checkpoint, external-state tracking, idempotency, and deduplication.
+9. Scheduler → Task → Queue → Worker
+The scheduler must not directly invoke Ollama.
+Scheduler   ↓Task   ↓Queue   ↓Worker   ↓Model Provider / Tools
+This separation is required for future Raspberry Pi + laptop + desktop distribution.
+10. Initial vs Future Deployment
+Initial:Laptop├── API├── PersonalOS Core├── PostgreSQL├── Scheduler├── Queue├── Worker├── Memory└── OllamaFuture:Raspberry Pi / Home Server├── API├── Database├── Scheduler├── Queue├── Memory├── Notifications└── Lightweight WorkersLaptop└── Heavy Worker    └── Ollama
+The initial deployment may be a modular monolith on one laptop, but the code must not assume that all components will permanently live on one machine.
+11. Raspberry Pi as Coordinator
+Eventually the Raspberry Pi can act as the always-on PersonalOS coordinator and source of truth for API, database, scheduler, task queue, memory, capability registry, model registry, worker registry, notifications, and persistent state.
+It does not need to perform every heavy AI task.
+12. Laptop as an On-Demand Worker
+Laptop starts ↓PersonalOS Worker starts ↓Worker registers and reports capabilities ↓Coordinator assigns suitable pending tasks ↓Laptop executes ↓Result is persisted centrally ↓Laptop can become idle or shut down
+The laptop should be treated as a replaceable worker, not the permanent identity of PersonalOS.
+13. Capability-Aware Workers
+Raspberry Pi:  database  scheduler  notifications  web requests  lightweight computeLaptop:  local_llm  coding  document_analysis  cpu_computeFuture GPU desktop:  large_llm  image_generation  video_processing  heavy_compute
+The orchestrator should ask which available worker can perform a task rather than hard-coding a specific machine.
+14. Wake-on-LAN
+Eventually the Pi may wake the laptop using Wake-on-LAN if the hardware/firmware supports it. The sequence can be: pending heavy task → no capable worker → Wake-on-LAN → laptop boots → worker registers → task executes → result returns → graceful shutdown.
+Wake-on-LAN is optional and hardware-dependent. Do not make it a foundational assumption. Never use forced power removal as a normal shutdown mechanism.
+15. Phone Architecture
+The phone should be a thin client of PersonalOS, not a second independent intelligence stack.
+Phone ↓PersonalOS API ↓Central PersonalOS
+The phone can send natural-language requests, receive notifications, display task status, and handle approval prompts.
+16. PersonalOS Is a Platform, Not a Fixed Feature List
+The concept evolved from a customized agent to an AI OS, phone interaction, notifications, finance, expense tracking, stocks, government-job monitoring, and future unknown verticals. This proves the core cannot be built around a fixed list of features.
+The architecture must support future domains without rewriting the Core.
+17. Vertical / Capability Architecture
+PersonalOS Core      ↓Capability Registry      ↓FinanceStocksGovernment JobsProjectsTravelReadingFuture Capability
+A capability should declare its name, version, capabilities/actions, entities, workflows, tools, permissions, storage/migrations, UI where applicable, automations, and compatibility requirements.
+18. Example Finance Capability
+Finance CapabilityActions:  record_expense  record_income  calculate_net_worth  calculate_budget  track_loan  track_asset  track_investmentEntities:  account  transaction  income  expense  loan  asset  investment  budget  subscription
+The orchestrator should not contain finance-specific business logic.
+19. Future Capability Example
+A future request such as “create a motorcycle vertical for fuel, maintenance, service history, insurance renewal, and maintenance recommendations” should be implementable as an installable capability rather than a rewrite of orchestrator.ts, scheduler.ts, memory.ts, or model-router.ts.
+20. Capability Builder — Long-Term Goal
+Eventually the user should be able to describe a new domain in natural language and have PersonalOS propose a capability design.
+Requirement ↓Capability design ↓Schema/workflow generation ↓Validation ↓Security review ↓User approval ↓Installation ↓Registration
+Do not implement the full Capability Builder in the first phase. Build the extension mechanism first.
+21. Model Architecture
+Model Registry      ↓Model Provider Abstraction      ↓Model Router      ↓Selected Model
+Provider examples include Ollama, llama.cpp, OpenRouter, and future providers.
+interface ModelProvider {  generate(request: ModelRequest): Promise<ModelResponse>;}
+Model metadata should include model ID, provider, context length, modalities, tool calling, structured output, reasoning/coding suitability, latency, cost, availability, local/cloud status, and hardware requirements.
+22. New Model Discovery
+Provider ↓New model discovered ↓Inspect metadata ↓Compatibility check ↓Pricing/cost check ↓Tool support check ↓Benchmark where appropriate ↓Compare against existing models ↓Recommend adoption
+Do not blindly replace a working model simply because a new model appears.
+23. Model Routing
+Task
+Possible routing
+Expense classification
+Small fast local model or deterministic parser
+Simple reminder
+No LLM or tiny local model
+Coding
+Coding-capable model
+Large document analysis
+Long-context model
+Complex reasoning
+Stronger model
+Privacy-sensitive task
+Local model
+Routing should consider quality, cost, latency, context length, privacy, availability, hardware, task type, and tool support.
+24. Model Policy / Content Freedom
+Model choice should remain user-controlled and the application should not impose arbitrary content restrictions merely because a request falls outside anticipated product categories. Local models should be first-class providers.
+However, content-policy freedom and operational authority are separate. A permissive model must not automatically gain unrestricted authority over the host system.
+25. Permission Architecture
+Agent ↓Action Request ↓Permission Engine ↓Policy Evaluation ↓Allowed / Confirmation / Denied ↓Tool Execution
+The model is never the final security authority.
+26. Permission Examples
+Action
+Default
+Web search
+Automatic
+Read permitted personal data
+Automatic
+Create a file
+Automatic
+Modify a file created by PersonalOS
+Automatic
+Modify existing user file
+Ask
+Delete a PersonalOS-created file
+Automatic/low-risk by policy
+Delete user-created file
+Ask
+Delete many files
+Ask
+Normal shell command
+Controlled/automatic
+Destructive command
+Ask
+Install software
+Ask
+System configuration change
+Ask
+Shutdown/reboot
+Ask
+Draft email
+Automatic
+Send email
+Ask
+Financial analysis
+Automatic
+Financial transfer
+Ask
+Buy/sell investment
+Ask
+Permissions must be configurable.
+27. File Provenance
+Track provenance where practical. A file created by PersonalOS can be identified separately from user-created or external data.
+report.mdcreated_by = PersonalOScreated_at = ...created_by_task = task_123
+The permission engine must not rely solely on the model's claim that a file is safe to delete.
+28. Structured Personal Finance
+Finance must use structured relational data, not merely vector memory.
+AccountTransactionExpenseIncomeBillLoanAssetInvestmentBudgetSubscription
+Natural language should be translated into deterministic records. Example: “I had chicken tikka at 2:30 PM, add ₹235.”
+29. Deterministic Financial Calculations
+Net Worth = Assets - Liabilities
+Loan calculations, budgets, remaining balances, and other numeric financial outputs should be calculated deterministically from structured data. The LLM should explain results, not invent them.
+30. Finance Questions
+What is my loan amount?
+What's my net worth?
+How much have I spent this month?
+How much is left in my food budget?
+What bills are coming up?
+What is my budget split?
+How much can I safely spend this month?
+31. Stocks / Investment Vertical
+Watchlist
+Holdings
+Transactions
+Portfolio
+Prices
+Company information
+News
+Announcements
+Earnings
+Portfolio performance
+Combine structured holdings data, current market data, news, announcements, and analysis. Clearly distinguish factual market data from AI interpretation.
+32. Financial Action Boundary
+Operation
+Automation
+Analyze portfolio
+Automatic
+Suggest rebalancing
+Automatic
+Prepare transaction
+Confirmation
+Buy stock
+Explicit confirmation
+Sell stock
+Explicit confirmation
+Transfer money
+Explicit confirmation
+Pay bill
+Explicit confirmation
+33. Government Job Monitoring
+The system should support a request such as: “Whenever a new government job registration opens that is related to my engineering domain, give me a heads-up and a detailed overview of what the exam is and what the work structure is.”
+Monitor relevant official sources.
+Detect new notifications.
+Assess relevance.
+Compare eligibility against stored user information.
+Retrieve the official notification.
+Extract eligibility, age, vacancies, salary, selection process, exam structure, syllabus, dates, job responsibilities, posting, and career information where available.
+Avoid duplicate alerts.
+Persist notification identity and state.
+Provide evidence from official sources.
+Distinguish official facts from AI inference.
+34. Monitoring Tasks
+Monitoring is a first-class task type.
+Government jobs
+Stock changes
+Company announcements
+Flight status
+Application status
+Price changes
+Deliveries
+System health
+Monitoring should maintain a checkpoint, deduplication state, change detection, schedule, and notification policy.
+35. Scheduler
+One-time tasks
+Recurring tasks
+Deadline tasks
+Condition-based tasks
+Event-based tasks
+Monitoring tasks
+Dependencies
+Retries
+Deadlines
+Priorities
+Cancellation
+Pause/resume
+Missed-run policies
+Catch-up policies
+36. Queue
+Use a persistent queue abstraction. Do not make Redis mandatory on day one.
+A PostgreSQL-backed queue is acceptable initially. Redis/BullMQ may be introduced when actual throughput or distributed-worker requirements justify it.
+37. PostgreSQL vs SQLite
+Preferred architecture: PostgreSQL, because the system has structured personal data, concurrent workers, relational integrity, robust transactions, future multi-node deployment, and possible pgvector usage.
+SQLite may be useful for an extremely simple prototype, but it must not force single-device assumptions. If used temporarily, isolate database access behind repositories/interfaces.
+38. PostgreSQL + Vector Search
+Use PostgreSQL for structured state and pgvector where semantic search is genuinely useful.
+Data
+Preferred storage
+Expenses
+Relational
+Loans
+Relational
+Stock holdings
+Relational
+Tasks
+Relational
+User profile facts
+Structured memory
+Long-form episodic memories
+Semantic/vector where useful
+Documents
+Files + metadata + vector index where useful
+39. Memory Architecture
+Working Memory
+Current task context.
+Episodic Memory
+What happened, including previous task execution and outcomes.
+Semantic Memory
+Generalized knowledge and retrievable information.
+User Memory
+Stable user information and preferences that are relevant across tasks.
+Procedural Memory
+How recurring workflows are performed.
+Task Memory
+Unfinished objectives, checkpoints, decisions, and dependencies.
+40. Memory Must Not Become a Garbage Dump
+Use relevance and importance criteria.
+Track freshness and confidence.
+Handle stale information.
+Do not vectorize everything.
+Keep structured facts structured.
+41. Event System
+task.createdtask.completedtask.failedworker.onlineworker.offlinepower.recoverednetwork.availablemodel.discoveredmodel.updatedcapability.installedexpense.recordedstock.changedjob.notification.discovereduser.confirmation.required
+Capabilities should be able to subscribe to generic events without hard-coded cross-domain dependencies.
+42. Capability Registry
+Capability Registry├── capabilities├── versions├── dependencies├── permissions├── schemas├── workflows├── tools├── UI└── lifecycle state
+Suggested lifecycle: DISCOVERED → VALIDATING → INSTALLED → ENABLED → DISABLED → UPDATED/REMOVED.
+43. Tool Architecture
+interface Tool {  name: string;  description: string;  inputSchema: unknown;  execute(input: unknown): Promise<ToolResult>;}
+web.search
+web.fetch
+filesystem.read
+filesystem.write
+filesystem.delete
+shell.execute
+git.commit
+github.create_issue
+calendar.create_event
+email.draft
+email.send
+database.query
+notification.send
+44. Tool Risk Classification
+Tool/action
+Risk
+Web search
+Low
+Filesystem read
+Low
+Filesystem write
+Medium
+Filesystem delete
+High
+Email send
+High
+Bank transfer
+Critical
+Every tool should expose permission requirements, risk classification, and an auditable execution result.
+45. Agent Architecture
+interface Agent {  id: string;  capabilities: string[];  execute(context: AgentContext): Promise<AgentResult>;}
+Agents should not own global state. Persistent state belongs in the appropriate stores.
+46. Workflow Architecture
+Complex objectives should become persistent workflows with recoverable steps.
+Research job ↓Fetch official notification ↓Parse ↓Extract requirements ↓Retrieve user profile ↓Compare eligibility ↓Analyze exam ↓Analyze work ↓Produce report ↓Store result ↓Notify user
+Never keep a long workflow only in model context.
+47. Long-Running Task Persistence
+workflow_id
+step_id
+status
+input
+output
+checkpoint
+retry_count
+worker
+timestamps
+error
+Long-running work must survive process restart, machine restart, network failure, worker disappearance, model failure, and user interruption.
+48. Authentication and Identity
+PersonalOS should have a central identity model. Phone, browser, laptop worker, Raspberry Pi, and future desktop should authenticate to the same PersonalOS identity.
+PersonalOS Identity       ↓Authorized Clients   ├── Phone   ├── Laptop   ├── Browser   └── Worker
+49. Notifications
+Notifications should be a provider abstraction.
+Phone push
+Web push
+Desktop notification
+Email
+Messaging services
+The scheduler produces notification events; notification providers decide delivery.
+50. Documents
+Documents should eventually be first-class data: uploaded, downloaded, generated, analyzed, summarized, associated with tasks/capabilities, and indexed. Provenance should be tracked.
+51. Local-First Principle
+Whenever practical, prefer local computation and storage. Do not make this ideological: local, cloud, or hybrid execution should be selectable based on privacy, quality, cost, and availability.
+52. Network-Aware Operation
+With approximately 1 Mbps connectivity, cache results, avoid repeated requests, deduplicate downloads, support resumable downloads where practical, avoid unnecessary model downloads, and keep heavy reasoning local.
+Network-dependent work should be able to enter WAITING_FOR_NETWORK and resume later.
+53. Internet Is a Data Layer, Not the Whole Brain
+When the internet is unavailable, local memory, finance, tasks, documents, planning, local models, structured data, and scheduling should continue working. Network-dependent operations wait and resume.
+54. Error Handling
+ToolResult {  success: false,  error_code: NETWORK_TIMEOUT,  retryable: true,  message: "...",  metadata: {}}
+Failures must become structured results rather than corrupting task state.
+55. Idempotency
+Important operations should be idempotent where practical. This prevents duplicate expenses after power loss, duplicate job alerts, and repeated side effects after retry.
+56. Auditability
+For consequential actions record who/what requested it, which agent proposed it, which policy allowed it, which worker executed it, which tool executed it, when it happened, and the result.
+57. Human-in-the-Loop
+Automate thinking and coordination aggressively, but preserve explicit approval for consequential actions such as financial transactions, destructive file operations, external communications, account/security changes, purchases, and high-impact system changes.
+58. Recommended Technology Stack
+Layer
+Initial recommendation
+Language
+TypeScript
+Runtime
+Node.js
+Backend
+Express or similarly lightweight framework
+Database
+PostgreSQL
+ORM
+Prisma
+Local model runtime
+Ollama initially
+Frontend
+Next.js
+Vector
+pgvector where required
+Queue
+PostgreSQL-backed initially
+Future queue
+Redis/BullMQ if justified
+Containers
+Docker where useful
+Testing
+Vitest/Jest or equivalent
+Logging
+Structured logging
+Validation
+Zod or equivalent
+59. Modular Monolith
+personal-os/├── apps/│   ├── api/│   ├── web/│   └── worker/├── packages/│   ├── core/│   ├── agents/│   ├── orchestration/│   ├── models/│   ├── tools/│   ├── memory/│   ├── tasks/│   ├── scheduler/│   ├── permissions/│   ├── capabilities/│   ├── notifications/│   ├── storage/│   └── shared/├── capabilities/│   ├── finance/│   ├── jobs/│   └── ...└── infrastructure/
+This is conceptual. Do not create dozens of packages solely for appearance. Keep the actual repository understandable.
+60. API Boundaries
+POST /tasksGET /tasks/:idPOST /tasks/:id/cancelPOST /agent/runGET /capabilitiesPOST /capabilities/installGET /modelsGET /workersPOST /actions/:id/approveGET /memory/searchPOST /notifications
+Exact routing can evolve. The important principle is generic platform contracts.
+61. Development Phases
+Phase -1 — Architecture
+Inspect hardware and constraints.
+Establish boundaries.
+Define interfaces.
+Identify high-risk architectural decisions.
+Define persistence model.
+Define task state machine.
+Define worker model.
+Define permission model.
+Define capability registry.
+Define model provider abstraction.
+Phase 0 — Minimal Platform Skeleton
+API
+PostgreSQL
+Core
+Task model
+Task persistence
+Basic worker
+ModelProvider interface
+Tool interface
+Capability interface
+Permission interface
+Logging
+Configuration
+Phase 1 — Minimal Autonomous Core
+User request ↓Intent ↓Planner ↓Task ↓Worker ↓Result ↓Persistent state
+Test restart recovery before adding many capabilities.
+Phase 2 — Local Model
+Integrate Ollama through the ModelProvider abstraction. Application code must not call Ollama directly.
+Phase 3 — Tools
+Implement filesystem, web, shell, Git, and basic notification tools, all behind the permission layer.
+Phase 4 — Verification
+Introduce Planner, Executor, and Verifier roles. Verify important claims and side effects.
+Phase 5 — Scheduler and Queue
+Implement recurring tasks, delayed tasks, retries, persistent queue, catch-up, dependencies, and missed-run policy. Test simulated power loss.
+Phase 6 — Memory
+Implement working, episodic, semantic, user, procedural, and task memory with selective indexing.
+Phase 7 — Capability System
+Implement Capability interface, registry, manifest, lifecycle, dependencies, permissions, configuration, and then build the first real verticals using the same mechanism.
+Phase 8 — Multi-Node Runtime
+Implement worker registry, authentication, capability advertisement, task assignment, heartbeat, offline detection, and result synchronization. Then introduce Raspberry Pi coordinator + laptop worker.
+Phase 9 — Phone Interface
+Add authentication, natural-language requests, task status, notifications, approvals, memory access, finance entry, and dashboard.
+Phase 10 — Model Ecosystem
+Add provider registry, model discovery, metadata, benchmarking, routing, recommendations, and metadata refresh.
+Phase 11 — Capability Builder
+Only after the extension system is stable. Generate capability designs from natural-language requirements, validate them, perform security review, and require user approval before installation.
+Phase 12 — PersonalOS Distribution
+Eventually provide one installer/image, setup process, service management, automatic startup, backups, updates, node registration, dashboard, health checks, capability management, and model management.
+62. Rejected Architecture Choices
+Rejected approach
+Reason
+One giant autonomous agent
+Tightly coupled, difficult to test and extend.
+One heavyweight LLM per logical agent
+Wasteful on current hardware; logical roles can share models.
+Microservices from day one
+Operational complexity without current need.
+Kubernetes
+Solves problems that do not exist yet; inappropriate for the initial hardware.
+Mandatory Redis
+Unnecessary until throughput/distributed execution justifies it.
+Scheduler directly calling Ollama
+Prevents clean queue/worker/model separation.
+Everything in vector memory
+Structured data requires relational integrity and deterministic queries.
+Hard-coded verticals
+Every new idea would require core rewrites.
+Hard-coded model list
+New models/providers would require code changes.
+Blind automatic model replacement
+New models need compatibility/evaluation and user control.
+Mandatory cloud AI
+Violates local-first and ₹0 requirement.
+Custom OS kernel
+Unrelated complexity; build the platform above Linux first.
+Laptop as permanent source of truth
+Power/network/hardware availability is not guaranteed.
+Assuming power/internet never fail
+Contradicts real operating conditions.
+Blindly replaying missed schedules
+Wasteful and semantically incorrect for monitoring tasks.
+63. Testing Requirements
+Task creation and persistence.
+State transitions.
+Restart recovery.
+Recurring schedules.
+Missed-run catch-up.
+Duplicate prevention.
+Worker failure and reassignment.
+Memory retrieval.
+Permission evaluation.
+Worker registration and disappearance.
+Model provider failure.
+Capability installation and compatibility.
+64. Failure Scenarios to Simulate
+Power loss.
+Network loss.
+Laptop disappearance.
+Pi disappearance.
+Model crash.
+Model unavailable.
+Database restart.
+Queue restart.
+Tool timeout.
+Web page unavailable.
+Duplicate notification.
+Worker reconnect.
+Task interrupted halfway.
+User rejects confirmation.
+65. Observability
+PERSONALOSCore             ONLINEDatabase         ONLINEScheduler        ONLINEQueue            ONLINEMemory           ONLINEWorkers  Raspberry Pi   ONLINE  Laptop         OFFLINEModels  Ollama         ONLINE  OpenRouter     ONLINETasks  Running        2  Queued         4  Waiting        1  Failed         0
+The eventual system needs a clear status surface because it will contain multiple workers, models, tasks, and integrations.
+66. Externalized Configuration
+Do not hard-code model names, API URLs, schedules, notification providers, worker addresses, permission rules, or capability settings. Use configuration and persistent registries.
+67. Versioning
+Capabilities, providers, and the Core should be versionable where practical. Compatibility should be checked before updates.
+PersonalOS Core 0.5Finance Capability 1.2Government Jobs Capability 0.7Ollama Provider 1.1
+68. Updates
+Updates must preserve user data.
+Backup ↓Migration ↓Update ↓Health check ↓Rollback if necessary
+Database migrations must be explicit.
+69. Security Principle
+The model is not the security boundary. Authentication, authorization, permission evaluation, tool sandboxing, filesystem permissions, database permissions, worker authentication, and audit logs form the security boundary.
+70. Shell Execution
+Raw unrestricted shell access should not be the default. Commands should be proposed, risk-classified, evaluated by permissions, executed in an appropriately restricted environment, and audited.
+71. Capability Security
+Capabilities should receive only the tools they need.
+Finance capability  database.finance.read  database.finance.write  notification.send
+It should not automatically receive shell execution, arbitrary filesystem deletion, or financial transfer privileges.
+72. Integrations
+External integrations such as Gmail, calendar, GitHub, messaging, market data, cloud storage, government sites, RSS, APIs, smart-home systems, and others should be adapters/connectors. Provider-specific logic should not be scattered throughout the Core.
+73. Data Ownership
+The user's data is the primary asset. Important data should be exportable, backed up, inspectable, migratable, and not trapped inside an LLM provider. Models should be replaceable without losing memory or structured data.
+74. Model Replacement Principle
+Replacing one model with another must not require rewriting finance, scheduler, memory, tasks, capabilities, or UI. A model is a replaceable compute dependency.
+75. Capability Replacement Principle
+Capabilities should also be independently replaceable. A future Finance v2 should migrate existing accounts, transactions, loans, and assets rather than destroying state.
+76. Core Stability Principle
+Stable Core   │   ├── Registry   ├── Contracts   └── Persistent State          │          ├── Rapidly evolving Capabilities          ├── Rapidly evolving Models          ├── Rapidly evolving Tools          └── Replaceable Workers
+The Core should change relatively slowly. Capabilities, models, tools, and workers should be able to evolve rapidly.
+77. User Experience Goal
+The system should feel simple even when its internals are sophisticated.
+“Add ₹235 for the chicken tikka I had at 2:30.”
+“Find new government engineering jobs and tell me if anything is worth applying for.”
+“Remind me at 4 that I need to leave at 6.”
+“Why did my portfolio fall today?”
+“I want to start preparing for GATE.”
+“Create a new vertical for my reading habit.”
+The complexity should remain behind the PersonalOS interface.
+78. Long-Term Autonomous Objective
+High-level objective ↓Understand objective ↓Inspect user state/memory ↓Assess current situation ↓Research requirements ↓Build personalized roadmap ↓Create tasks ↓Schedule work ↓Execute ↓Evaluate ↓Adapt ↓Remember ↓Notify/follow up ↓Measure outcome
+This is the direction, not an instruction to implement the entire loop immediately.
+79. Rules for Future Ideas
+New feature
+Ask: Is this a Core primitive or a Capability? Most personal-domain functionality should be a Capability.
+New model
+Ask: Can it be represented through the existing ModelProvider and Model Registry interfaces? If yes, register it rather than changing the architecture.
+New tool/service
+Ask: Can it be represented as a Tool or Integration? Prefer an adapter over a special case in the orchestrator.
+New hardware
+Register a Worker, advertise capabilities, authenticate, and receive tasks. Do not hard-code machine identity into workflows.
+80. Architecture Decision Records
+Maintain ADRs for significant decisions. Each ADR should record context, decision, alternatives, rationale, and consequences.
+ADR-001 Modular Monolith
+ADR-002 PostgreSQL
+ADR-003 ModelProvider abstraction
+ADR-004 Task Queue abstraction
+ADR-005 Scheduler/Queue/Worker separation
+ADR-006 Capability Registry
+ADR-007 Permission Engine
+ADR-008 Local-first model strategy
+ADR-009 Multi-node worker architecture
+ADR-010 Catch-up semantics
+ADR-011 Structured finance storage
+81. First Principle
+Do not build today's PersonalOS in a way that makes tomorrow's PersonalOS impossible.
+At the same time, do not build tomorrow's infrastructure before today's requirements need it.
+The solution is simple implementation + strong boundaries + stable interfaces + persistent state + extensible registries + capability architecture + worker abstraction, not premature distributed complexity.
+82. Final Target Architecture
+USER                          │             ┌────────────┴────────────┐             │                         │          PHONE                    WEB / CLI             │                         │             └────────────┬────────────┘                          │                          ▼                 ┌─────────────────┐                 │  PERSONALOS API │                 └────────┬────────┘                          │                 ┌────────▼────────┐                 │      CORE       │                 │                 │                 │ Orchestrator    │                 │ Task Engine     │                 │ Event System    │                 │ Permission      │                 │ Memory          │                 │ Scheduler       │                 └────────┬────────┘                          │              ┌───────────┼───────────┐              │           │           │              ▼           ▼           ▼         Capability     Model        Tool          Registry     Registry     Registry              │           │           │       ┌──────┼─────┐     │       ┌───┼────┐       │      │     │     │       │   │    │    Finance Stocks Jobs  Ollama  Web Git Email                          OpenRouter                          Future              │              ▼        Task / Workflow              │              ▼            Queue              │       ┌──────┼───────┐       │      │       │       ▼      ▼       ▼      Pi    Laptop  Desktop    Worker  Worker   Worker              │            Ollama              │        Local Models
+83. Definition of Success
+Requirement
+Success condition
+Extensibility
+A new vertical can be added without rewriting Core.
+Model independence
+A new model/provider can be added without rewriting capabilities.
+Hardware independence
+A new worker can join without rewriting workflows.
+Recovery
+Power/network loss does not destroy persistent work.
+Offline capability
+Local functionality remains useful without internet.
+Distributed capability
+Pi can coordinate while laptop performs heavy work.
+Security
+Models cannot bypass permission boundaries.
+User control
+Consequential actions require explicit approval where configured.
+Persistence
+Important information survives restarts.
+Natural interaction
+User can express goals instead of technical prompts.
+Cost
+No mandatory paid API requirement.
+Evolution
+The system can gain capabilities for years without becoming a rewrite.
+84. Final Instruction to OpenCode
+Treat this document as the architectural north star, not as an instruction to implement everything immediately.
+Inspect the current repository before changing anything.
+Understand the existing implementation before modifying it.
+Identify the smallest correct architectural change.
+Preserve clean boundaries.
+Persist important state.
+Test failure and recovery behavior.
+Avoid unnecessary infrastructure.
+Document important decisions.
+Keep Core generic.
+Implement domain-specific functionality as capabilities.
+Keep models behind providers.
+Keep external actions behind tools and permissions.
+Keep execution behind workers.
+Keep scheduling separate from execution.
+Design for eventual Raspberry Pi + laptop + phone operation.
+Do not prematurely build distributed infrastructure.
+Never sacrifice future extensibility merely to make the first prototype slightly faster to write.
+The ultimate objective is not to build a chatbot with many features. It is to build a persistent, extensible PersonalOS platform whose capabilities can continuously evolve as the user's needs evolve while the underlying Core remains stable.
+Target end-state: PersonalOS owns the persistent personal state, memory, tasks, goals, capabilities, workflows, and model/tool registry; available machines contribute compute as replaceable workers; new verticals are installable capabilities; new models/providers can be discovered and evaluated; power and network interruptions are recoverable; and consequential external actions remain behind an independent permission layer.

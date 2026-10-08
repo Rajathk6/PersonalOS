@@ -1,0 +1,63 @@
+# DECISIONS — living knowledge base (append, never rewrite history)
+
+Format: `## YYYY-MM-DD — Title` / Context / Decision / Why / Consequence. Plain English.
+
+## 2026-10-08 — TypeScript monorepo, modular monolith
+Context: Spec allows `personal-os/apps+packages` layout but warns against dozens of empty packages.
+Decision: single npm workspaces root with `apps/api` + `packages/*` created ONLY when a module earns it. Phase 0 starts with `src/`-style minimal packages (core, contracts) and grows deliberately.
+Why: quality over file count; avoids fake microservices; keeps imports acyclic.
+Consequence: Phase 0 PR must not create >6 packages.
+
+## 2026-10-08 — PostgreSQL 16 + Prisma, PG-backed queue, no Redis
+Context: Spec prefers PG (relational integrity, concurrent workers, future pgvector/multi-node); Redis only when justified.
+Decision: PG16 via Docker Compose; queue = SQL table + `FOR UPDATE SKIP LOCKED` polling; Redis absent.
+Why: matches ₹0 + single-laptop reality; one fewer moving part; power-loss recovery = rows, not RAM.
+Consequence: worker poll interval + lease column design must be documented in ADR-004.
+
+## 2026-10-08 — Token discipline: read condensed spec, never re-parse docx
+Context: User asked to analyse once and reuse.
+Decision: `.knowledge/NORTH_STAR.md` is the working spec; `SPEC_FULL.txt` is frozen evidence; subagents get NORTH_STAR path in their prompt.
+Why: saves tokens every turn, prevents drift.
+Consequence: if spec looks wrong, fix NORTH_STAR via explicit edit + note in PROGRESS.md.
+
+## 2026-10-08 — Pre-build prep done before any Phase 0 code (user directive)
+Context: User said do everything that helps before actually building, and record all decisions.
+Decision: froze architecture first — wrote ARCHITECTURE.md, INTERFACES.md, DATA_MODEL.md, RISKS.md, GLOSSARY.md, OPEN_QUESTIONS.md + ADR-001..011. No implementation code written yet.
+Why: cheap to fix a doc, expensive to fix built code; keeps Core generic from day one.
+Consequence: Phase 0 bundles must conform to INTERFACES.md; any interface change needs an ADR edit + note here.
+
+## 2026-10-08 — PostgreSQL only, SQLite dropped (contradiction resolved)
+Context: Spec text mentioned SQLite-as-temporary-prototype with repository isolation, but stack table + ADR-002 lock PostgreSQL 16 + Prisma.
+Decision: PG16 is the only database. No SQLite code path, no swap shim. Repository pattern still required (multi-node future), but its job is clean boundaries, not SQLite compat.
+Why: a temporary second database doubles testing (recovery semantics differ) for zero user benefit on a 1TB SSD laptop.
+Consequence: Docker Compose ships PG16; DATA_MODEL.md DDL is PG-specific (SKIP LOCKED, JSONB, UNIQUE idempotency_key).
+
+## 2026-10-08 — Interface stability split: STABLE vs DRAFT
+Context: Freezing everything equally would fake certainty about Memory/Capability shapes we haven't built yet.
+Decision: STABLE (change needs ADR): Task + state machine, Tool/ToolResult, Permission verdicts, Queue ops, Event envelope, Worker register/heartbeat, ModelProvider.generate. DRAFT (may evolve in Phase 1-6): Capability manifest details, Memory record fields, ModelMetadata extras.
+Why: locks the load-bearing contracts (recovery, security, queue) while leaving learning room where the spec is intentionally vague.
+Consequence: code review rejects PRs that widen STABLE interfaces without an ADR.
+
+## 2026-10-08 — Queue = PG table with lease + idempotency_key (design locked)
+Context: Needed a concrete durable handoff that survives power cuts without Redis.
+Decision: tasks table owns state; dequeue = single transaction (SELECT .. FOR UPDATE SKIP LOCKED + set running/lease_owner/lease_expires_at); idempotency_key UNIQUE kills duplicate side effects; stale leases (lease_expires < now + dead heartbeat) requeue on boot.
+Why: rows survive power loss, RAM doesn't; UNIQUE key is cheaper than dedup logic in every worker.
+Consequence: worker poll interval + heartbeat timeout become config values, documented in ADR-004.
+
+## 2026-10-08 — Events are signals, Queue is truth (no event-sourced tasks)
+Context: Easy to confuse the event bus with the task queue.
+Decision: Event Bus carries lightweight signals (IDs + refs, exact channel names in ARCHITECTURE.md); durable state lives only in PG rows. Events are never replayed as task recovery.
+Why: prevents split-brain recovery (row says failed, event says running).
+Consequence: capabilities subscribe to events but checkpoint from the DB.
+
+## 2026-10-08 — Audit log append-only from day one
+Context: Permission verdicts + tool runs must be explainable later ("why did it delete that file?").
+Decision: audit_log table (who/what/policy/worker/tool/when/result) written on every gated action starting Phase 0, even before any UI reads it.
+Why: retrofitting audit is ~10x harder; rows are cheap.
+Consequence: PermissionEngine.evaluate + Tool.execute both emit audit rows; no silent side effects.
+
+## 2026-10-08 — Finance/stocks/jobs tables deferred to Phase 7 (stubs only)
+Context: Temptation to model money tables early.
+Decision: Phase 0 DATA_MODEL ships tasks/task_steps/workers/scheduled_jobs/audit_log only; finance verticals get one-line stubs. First real domain tables arrive with the Capability system.
+Why: building domain tables before the Capability manifest exists guarantees a Core rewrite later — the exact failure the spec warns about.
+Consequence: Phase 1 demo must use a non-money flow (recommendation: reminders).
