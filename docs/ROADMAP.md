@@ -13,8 +13,8 @@
 Bundle 0A (scaffolding) ✅ merged as PR #1: monorepo layout, Express API boot, config (env, no hard-coded URLs/models/schedules), pino logging, Bearer-token auth, honest /health, Docker Compose (PG16 + PG_PORT), Prisma schema + migration (tasks/task_steps/workers/scheduled_jobs/audit_log). Verified: typecheck+lint+test green, migrate applied, live 200/401/404.
 Bundle 0A (scaffolding): monorepo layout, Express API boot, config (env, no hard-coded URLs/models/schedules), pino logging, health endpoint, Docker Compose (PG16), Prisma setup
 Bundle 0B (contracts) ✅ merged as PR #3: @personalos/contracts (frozen types STABLE/DRAFT, Zod strict schemas, ContractError, generic Registry + lifecycle validation, 16 tests green).
-Bundle 0C (persistence): Task model + repository + state machine (created→queued→running→done/failed/cancelled + waiting_for_network) + PG-backed queue table + basic worker loop (poll → execute → persist result)
-- VERIFY (once): API boots, creates task via POST, worker picks it up, survives `docker restart db` + process kill (task recoverable), typecheck+lint+vitest green
+Bundle 0C (persistence) ✅ merged as PR #4: @personalos/core (TaskRepository + PgQueue SKIP LOCKED + WorkerHost + recoverOnBoot, audit on every transition, 14 new tests incl. 7 real-PG: crash recovery proven). CI now runs postgres + migrate deploy.
+- VERIFY (once, Phase 0 gate): API boots, creates task via POST, worker picks it up, survives `docker restart db` + process kill (task recoverable), typecheck+lint+vitest green → status: static + DB recovery green; POST/worker-pickup arrives Phase 1; `docker restart db` survival re-tested at release.
 
 ## Phase 1 — Minimal Autonomous Core
 Intent → Planner → Task → Worker → Result → persist. One demo flow (e.g. "remind me" / echo-task with planner stub). Restart-recovery test mandatory before new features.
