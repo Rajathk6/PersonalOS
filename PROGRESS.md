@@ -62,3 +62,8 @@
 - kill -9 gate on live system (dev DB, lease 5s, poll 500ms): future reminder queued 17:48:18Z due 17:49:33Z → `kill -9` the API mid-wait (API_DOWN confirmed) → cold boot after due → recovery clean → worker delivered 17:50:34Z → state done with output. Gate rows deleted; dev DB back to 0 tasks; server stopped.
 - This proves the Phase 1 exit criterion: power loss never destroys persistent work; overdue work resumes on boot.
 - Next: release v0.2 to main, then Phase 2 (Ollama behind ModelProvider — zero direct imports outside provider).
+
+## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
+- Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
+- `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)
+- Next: Phase 2 — Ollama provider + router (no Ollama binary on laptop yet; ~2GB model over ~1Mbps needs an overnight pull).
