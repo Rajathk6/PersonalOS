@@ -109,3 +109,9 @@ Context: Prisma tables lack capability columns and Prisma's Json type fights str
 Decision: (1) Routing metadata (capability, requiredCapabilities) rides inside the payload JSON envelope, unwrapped only by toContractTask — no migration needed. (2) WorkerHost passes auth "local-trusted-host" (grep-able placeholder; PgQueue ignores it until Phase 8 multi-node auth). (3) JSONB writes cast via `as Prisma.InputJsonValue` at the boundary with why-comments; values are JSON by construction. (4) Integration tests require TEST_DATABASE_URL and skip loudly without it; CI runs a postgres service + migrate deploy; local test db is personalos_test (port 5433).
 Why: keep the schema stable, keep auth honest (no fake security), keep dev data unpolluted.
 Consequence: Phase 1+ must preserve the envelope shape; Phase 8 replaces the auth placeholder with real worker credentials.
+
+## 2026-10-08 — Phase 1A slice calls (app factory, async errors, worker in-process)
+Context: Routes + worker had to be testable without a running server, and Express 4 silently drops async errors.
+Decision: (1) `createApp(deps)` factory + `bootstrap()` own startup; index.ts is a thin prod entry; tests inject Prisma + port 0. (2) Every promise chain in routes ends in `next(err)` — never rethrow — so the error middleware (not an unhandled rejection) answers. (3) WorkerHost runs in-process behind WORKER_ENABLED (default true); the queue-polling boundary already enforces scheduler/worker separation, and the split into processes/nodes waits for Phase 5/8. (4) `reminder.send` delivers to the log with output `{deliveredAt, text, channel:"log"}` — honest channel name; real notification providers arrive Phase 3+.
+Why: testability without mocks of the world; no silent 500s; no premature process split on a single laptop.
+Consequence: Phase 5 must move the worker out-of-process without changing handler or queue contracts.
