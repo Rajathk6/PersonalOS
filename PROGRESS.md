@@ -48,7 +48,9 @@
 - Evidence: typecheck ✅ lint ✅ 30/30 tests ✅ (16 contracts + 4 transitions + 3 worker + 7 real-PG integration: lease skip, capability match, crash→redelivery retryCount+1, retry exhaustion, idempotency, network parking, missing-handler fail-fast). Test DB empty after runs; dev DB untouched.
 - Next: release v0.1 to main (Phase 0 milestone), then Phase 1 (intent→plan→task→worker→result + reminders demo + restart-recovery gate).
 
-## 2026-10-08 — v0.1 released to main (on main: full gate re-run + docker-restart survival; tagged v0.1; will sync back to develop after this merge).
+## 2026-10-08 — v0.1 released to main (Phase 0 milestone)
+- Release gate on `release/v0.1`: full re-run typecheck ✅ lint ✅ 30/30 ✅ + live `docker restart db` survival: probe task stayed queued, recoverOnBoot clean (1 kept), worker claimed + completed → done, probe row removed.
+- `main` now = Phase -1 docs + Phase 0 code (PRs #1–#4), tagged v0.1. Synced back into develop with this merge.
 
 ## 2026-10-08 — Phase 1A merged (PR #6 → develop)
 - Scope: app factory + bootstrap (recover→serve→work), task routes (POST/GET/list/cancel with 201/400/404/409 mapping), reminder.send handler (log channel), WORKER_ENABLED/WORKER_ID env (hostname default), live-db /health.
