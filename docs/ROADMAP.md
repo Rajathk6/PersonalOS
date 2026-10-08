@@ -9,7 +9,8 @@
 - [ ] Repo skeleton + TS strict + lint + config/logging conventions
 - VERIFY: `npm run typecheck && npm run lint` green, interfaces import without cycles
 
-## Phase 0 — Minimal Platform Skeleton [NEXT]
+## Phase 0 — Minimal Platform Skeleton [IN PROGRESS — 0A merged]
+Bundle 0A (scaffolding) ✅ merged as PR #1: monorepo layout, Express API boot, config (env, no hard-coded URLs/models/schedules), pino logging, Bearer-token auth, honest /health, Docker Compose (PG16 + PG_PORT), Prisma schema + migration (tasks/task_steps/workers/scheduled_jobs/audit_log). Verified: typecheck+lint+test green, migrate applied, live 200/401/404.
 Bundle 0A (scaffolding): monorepo layout, Express API boot, config (env, no hard-coded URLs/models/schedules), pino logging, health endpoint, Docker Compose (PG16), Prisma setup
 Bundle 0B (contracts): `ModelProvider`, `Tool`, `Capability`, `PermissionEngine`, `Task` types + registries (in-memory, PG-persisted later) + Zod validation
 Bundle 0C (persistence): Task model + repository + state machine (created→queued→running→done/failed/cancelled + waiting_for_network) + PG-backed queue table + basic worker loop (poll → execute → persist result)
