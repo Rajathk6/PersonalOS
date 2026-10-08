@@ -14,6 +14,7 @@ export interface AppDeps {
   queue: PgQueue;
   workerStatus: () => "enabled" | "disabled";
   modelIds: () => string[];
+  tools: () => { name: string; version: string; description: string; risk: string }[];
 }
 
 // App factory (not a singleton): production and tests each build their own
@@ -48,6 +49,12 @@ export function createApp(deps: AppDeps): Express {
   });
 
   app.use("/tasks", taskRouter(deps.store, deps.queue));
+
+  // Visibility only: which tools exist and their risk. Execution stays behind
+  // the executor (Phase 4); there is deliberately no POST /tools/:name yet.
+  app.get("/tools", (_req: Request, res: Response): void => {
+    res.json({ tools: deps.tools() });
+  });
 
   app.use((_req: Request, res: Response): void => {
     res.status(404).json({ error: "not-found" });

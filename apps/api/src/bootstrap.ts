@@ -1,8 +1,20 @@
 import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type { Server } from "node:http";
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
 import { PgQueue, TaskRepository, WorkerHost, recoverOnBoot } from "@personalos/core";
 import { ModelRegistry, OllamaProvider, qwen25_3b } from "@personalos/models";
+import {
+  DefaultPermissionEngine,
+  ToolExecutor,
+  ToolRegistry,
+  filesystemTools,
+  gitTools,
+  shellTools,
+  webTools,
+} from "@personalos/tools";
 import { createApp } from "./app.js";
 import { defaultHandlers } from "./handlers.js";
 import { logger } from "./logger.js";
@@ -17,6 +29,7 @@ export interface BootstrapOptions {
   leaseSeconds: number;
   ollamaUrl: string;
   modelTimeoutMs: number;
+  workspaceDir: string;
 }
 
 export interface RunningService {
@@ -24,6 +37,7 @@ export interface RunningService {
   queue: PgQueue;
   store: TaskRepository;
   models: ModelRegistry;
+  tools: ToolExecutor;
   port: number;
   stop: () => Promise<void>;
 }
@@ -51,6 +65,39 @@ export async function bootstrap(
   });
   logger.info({ models: models.list().map((m) => m.id) }, "models registered");
 
+  // Tool wall: registry + permission engine + gated executor. Nothing else in
+  // the codebase may execute tools except through this executor (Phase 4
+  // planner will be its first real caller).
+  const workspaceRoot = path.resolve(process.cwd(), opts.workspaceDir);
+  await mkdir(workspaceRoot, { recursive: true });
+  const toolRegistry = new ToolRegistry();
+  for (const tool of [
+    ...filesystemTools(workspaceRoot),
+    ...webTools(),
+    ...shellTools(workspaceRoot),
+    ...gitTools(workspaceRoot),
+  ]) {
+    toolRegistry.register(tool);
+  }
+  const toolExecutor = new ToolExecutor(toolRegistry, new DefaultPermissionEngine(), {
+    sandboxRoot: workspaceRoot,
+    audit: async (entry) => {
+      await prisma.auditLog.create({
+        data: {
+          who: entry.who,
+          action: entry.action,
+          policy: entry.policy,
+          workerId: entry.workerId,
+          toolName: entry.toolName,
+          taskId: entry.taskId,
+          result: entry.result,
+          detail: entry.detail as Prisma.InputJsonValue,
+        },
+      });
+    },
+  });
+  logger.info({ tools: toolRegistry.list().map((t) => t.name) }, "tools registered");
+
   let host: WorkerHost | null = null;
   if (opts.workerEnabled) {
     host = new WorkerHost(prisma, queue, {
@@ -71,6 +118,7 @@ export async function bootstrap(
     queue,
     workerStatus: () => (host === null ? "disabled" : "enabled"),
     modelIds: () => models.list().map((m) => m.id),
+    tools: () => toolRegistry.list(),
   });
 
   let server: Server | null = null;
@@ -89,6 +137,7 @@ export async function bootstrap(
     queue,
     store,
     models,
+    tools: toolExecutor,
     port: boundPort,
     stop: async (): Promise<void> => {
       if (host !== null) await host.stop();

@@ -133,3 +133,9 @@ Context: User said stop spending time on tests; focus on development.
 Decision: no new tests, no repeated runs per step. Existing suites (46 tests) stay and must keep passing on bundle verification, but verification = typecheck + lint + one test run per bundle, nothing more.
 Why: prototype speed; the suites already cover contracts/queue/recovery/routes/provider.
 Consequence: Phase 3+ bundles ship with code + docs + one verification pass; test expansion resumes post-prototype.
+
+## 2026-10-09 — Phase 3 tool-wall calls (sandbox, confirmations, audit-everything)
+Context: Tools needed real safety without a UI for approvals yet.
+Decision: (1) Filesystem tools jailed to WORKSPACE_DIR via resolveInside prefix check, enforced in the tool AND the verdict (defense in depth); outside reads → Confirm, outside deletes → Denied. (2) Confirm verdicts never execute — executor returns CONFIRMATION_REQUIRED; durable approval queue waits for scheduler/phone phases. (3) Shell has a denylist enforced twice (policy + tool itself); everything else shell → Confirm. (4) web.fetch capped 1MB/30s with literal-IP private-range blocks (hostname DNS resolution guard deferred, documented). (5) Every executor path — including unknown-tool probes — writes an audit row.
+Why: no silent permissions, no fake approvals, no unbounded downloads on 1Mbps.
+Consequence: Phase 4 planner calls tools only through ToolExecutor; POST /tools execute endpoint arrives with the approval queue, not before.
