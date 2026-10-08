@@ -15,6 +15,8 @@ async function main(): Promise<void> {
     pollMs: config.workerPollMs,
     heartbeatSeconds: config.workerHeartbeatS,
     leaseSeconds: config.workerLeaseS,
+    ollamaUrl: config.ollamaUrl,
+    modelTimeoutMs: config.modelTimeoutMs,
   });
 
   const shutdown = (signal: string): void => {

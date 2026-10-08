@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@personalos/contracts": "0.0.0",
     "@personalos/core": "0.0.0",
+    "@personalos/models": "0.0.0",
     "@prisma/client": "^6.19.3",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

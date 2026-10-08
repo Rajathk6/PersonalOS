@@ -62,8 +62,26 @@ describe("WorkerHost", () => {
     expect(calls).toBe(1);
   });
 
-  it("stop() halts polling", async () => {
-    const queue = fakeQueue(() => undefined);
+  it("contains row-vanished-mid-run as onTaskError, never unhandled", async () => {
+    const seen: { taskId: string | null }[] = [];
+    const badQueue = {
+      ...fakeQueue(() => undefined),
+      dequeue: async (): Promise<Task | null> => {
+        throw new Error("row gone");
+      },
+    };
+    const host = new WorkerHost(db, badQueue, {
+      workerId: "w1", capabilities: [], pollMs: 5, heartbeatSeconds: 60,
+      handlers: new Map(),
+      onTaskError: (_err, taskId) => { seen.push({ taskId }); },
+    });
+    await host.start();
+    await vi.waitFor(() => expect(seen.length).toBeGreaterThan(0));
+    await host.stop();
+    expect(seen[0]?.taskId).toBeNull();
+  });
+
+  it("stop() halts polling", async () => {    const queue = fakeQueue(() => undefined);
     const dequeues = vi.spyOn(queue, "dequeue");
     const host = hostWith(queue, new Map([["demo.ping", async () => "pong"]]));
     await host.start();

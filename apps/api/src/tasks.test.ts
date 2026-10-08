@@ -37,6 +37,8 @@ describe.skipIf(!TEST_URL)("task routes + worker slice", () => {
       pollMs: 10,
       heartbeatSeconds: 60,
       leaseSeconds: 30,
+      ollamaUrl: "http://127.0.0.1:1",
+      modelTimeoutMs: 1000,
     });
     base = `http://127.0.0.1:${svc.port}`;
   });

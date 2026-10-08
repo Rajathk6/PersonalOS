@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { PrismaClient } from "@prisma/client";
 import type { Server } from "node:http";
 import { PgQueue, TaskRepository, WorkerHost, recoverOnBoot } from "@personalos/core";
+import { ModelRegistry, OllamaProvider, qwen25_3b } from "@personalos/models";
 import { createApp } from "./app.js";
 import { defaultHandlers } from "./handlers.js";
 import { logger } from "./logger.js";
@@ -14,12 +15,15 @@ export interface BootstrapOptions {
   pollMs: number;
   heartbeatSeconds: number;
   leaseSeconds: number;
+  ollamaUrl: string;
+  modelTimeoutMs: number;
 }
 
 export interface RunningService {
   app: Express;
   queue: PgQueue;
   store: TaskRepository;
+  models: ModelRegistry;
   port: number;
   stop: () => Promise<void>;
 }
@@ -38,6 +42,15 @@ export async function bootstrap(
   const recovery = await recoverOnBoot(prisma, opts.leaseSeconds);
   logger.info(recovery, "boot recovery complete");
 
+  // Model registry: providers register here, nothing else may construct one
+  // that talks to model servers (ADR-003). No handler uses it yet (Phase 4).
+  const models = new ModelRegistry();
+  models.register({
+    metadata: qwen25_3b,
+    provider: new OllamaProvider({ baseUrl: opts.ollamaUrl, timeoutMs: opts.modelTimeoutMs }),
+  });
+  logger.info({ models: models.list().map((m) => m.id) }, "models registered");
+
   let host: WorkerHost | null = null;
   if (opts.workerEnabled) {
     host = new WorkerHost(prisma, queue, {
@@ -46,6 +59,7 @@ export async function bootstrap(
       pollMs: opts.pollMs,
       heartbeatSeconds: opts.heartbeatSeconds,
       handlers: defaultHandlers(),
+      onTaskError: (err, taskId) => logger.error({ err, taskId }, "worker task error"),
     });
     await host.start();
     logger.info({ workerId: opts.workerId }, "worker started");
@@ -56,6 +70,7 @@ export async function bootstrap(
     store,
     queue,
     workerStatus: () => (host === null ? "disabled" : "enabled"),
+    modelIds: () => models.list().map((m) => m.id),
   });
 
   let server: Server | null = null;
@@ -73,6 +88,7 @@ export async function bootstrap(
     app,
     queue,
     store,
+    models,
     port: boundPort,
     stop: async (): Promise<void> => {
       if (host !== null) await host.stop();

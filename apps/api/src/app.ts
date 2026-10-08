@@ -13,6 +13,7 @@ export interface AppDeps {
   store: TaskRepository;
   queue: PgQueue;
   workerStatus: () => "enabled" | "disabled";
+  modelIds: () => string[];
 }
 
 // App factory (not a singleton): production and tests each build their own
@@ -37,6 +38,7 @@ export function createApp(deps: AppDeps): Express {
           queue: "ready",
           scheduler: "not-wired",
           worker: deps.workerStatus(),
+          models: deps.modelIds(),
           version,
         });
       })
