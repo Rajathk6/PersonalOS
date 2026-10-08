@@ -35,3 +35,9 @@
 - Evidence: typecheck ✅ lint ✅ test ✅ (no tests yet, passWithNoTests); migrate applied (tasks/task_steps/workers/scheduled_jobs/audit_log); live: /health 200, no-token 401, wrong-token 401, good-token 404.
 - `main` untouched since Phase -1 docs — first release tag comes after 0B+0C.
 - Next: Phase 0 Bundle 0B (contracts: ModelProvider/Tool/Capability/Permission types + registries + Zod).
+
+## 2026-10-08 — Phase 0 Bundle 0B merged (PR #3 → develop)
+- Scope: new package @personalos/contracts — all INTERFACES.md types (STABLE/DRAFT marked), Zod strict schemas for boundary types, ContractError (5 codes), generic in-memory Registry (register/replace/get/list, no silent overwrite, exact-version pinning) + lifecycle edge validation, 16 vitest tests.
+- Gap notes (honest, in PR): PermissionResult envelope added as DRAFT (spec had no data shape); lifecycle edges authored from NORTH_STAR chain; method-bearing interfaces (Tool/ModelProvider/Queue/Engine) are types-only by necessity; INCOMPATIBLE_VERSION/VALIDATION_FAILED reserved for 0C.
+- Evidence: typecheck ✅ lint ✅ 16/16 tests ✅. Root tsconfig now includes packages/*/src.
+- Next: Phase 0 Bundle 0C (task repository + PG queue + worker loop + boot recovery + restart test).

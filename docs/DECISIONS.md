@@ -97,3 +97,9 @@ Context: API booted with "DATABASE_URL Required" under `npm run -w` because dote
 Decision: config.ts loads nearest `.env` first, then repo-root `.env` for missing vars (layout-relative path only, no absolutes).
 Why: both `npm run dev` (root) and `npm run -w` (workspace) must work; env resolution is a startup concern, not developer memory.
 Consequence: root `.env` stays gitignored; `.env.example` is the contract.
+
+## 2026-10-08 — Bundle 0B interpretations (PermissionResult, lifecycle edges, version pinning)
+Context: INTERFACES.md froze states and method names but not every transition detail; 0B had to fill small gaps without guessing policy.
+Decision: (1) Added DRAFT `PermissionResult { verdict, reason? }` envelope — INTERFACES.md had the engine signature but no data shape for the verdict crossing the worker boundary. (2) Lifecycle edges authored from the NORTH_STAR chain + re-enable edges (DISABLED/UPDATED→ENABLED) so a capability resumes without reinstall. (3) Registry `get()` without version resolves only when exactly one version exists; otherwise throws — callers must pin versions until range support lands post-Phase-0.
+Why: freeze the load-bearing behavior (no silent overwrite, no ambiguous resolution) while marking the new shapes DRAFT so Phase 1+ can correct them cheaply.
+Consequence: 0C loader must pass exact versions; any edge change needs a DECISIONS note, not a silent edit.
