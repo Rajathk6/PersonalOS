@@ -41,3 +41,9 @@
 - Gap notes (honest, in PR): PermissionResult envelope added as DRAFT (spec had no data shape); lifecycle edges authored from NORTH_STAR chain; method-bearing interfaces (Tool/ModelProvider/Queue/Engine) are types-only by necessity; INCOMPATIBLE_VERSION/VALIDATION_FAILED reserved for 0C.
 - Evidence: typecheck ✅ lint ✅ 16/16 tests ✅. Root tsconfig now includes packages/*/src.
 - Next: Phase 0 Bundle 0C (task repository + PG queue + worker loop + boot recovery + restart test).
+
+## 2026-10-08 — Phase 0 Bundle 0C merged (PR #4 → develop) — PHASE 0 COMPLETE
+- Scope: new package @personalos/core — TaskRepository (idempotent create, guarded transitions, audit rows), PgQueue (SKIP LOCKED claim + capability match in SQL, complete/fail with retry budget, requeueStale), WorkerHost (register/heartbeat/poll/handler dispatch, fail-fast on unknown type), recoverOnBoot. CI upgraded with postgres service + migrate deploy.
+- Subagent attempt returned empty (no files); built directly instead — recorded as a process note, not a decision.
+- Evidence: typecheck ✅ lint ✅ 30/30 tests ✅ (16 contracts + 4 transitions + 3 worker + 7 real-PG integration: lease skip, capability match, crash→redelivery retryCount+1, retry exhaustion, idempotency, network parking, missing-handler fail-fast). Test DB empty after runs; dev DB untouched.
+- Next: release v0.1 to main (Phase 0 milestone), then Phase 1 (intent→plan→task→worker→result + reminders demo + restart-recovery gate).

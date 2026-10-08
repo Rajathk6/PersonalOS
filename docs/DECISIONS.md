@@ -103,3 +103,9 @@ Context: INTERFACES.md froze states and method names but not every transition de
 Decision: (1) Added DRAFT `PermissionResult { verdict, reason? }` envelope — INTERFACES.md had the engine signature but no data shape for the verdict crossing the worker boundary. (2) Lifecycle edges authored from the NORTH_STAR chain + re-enable edges (DISABLED/UPDATED→ENABLED) so a capability resumes without reinstall. (3) Registry `get()` without version resolves only when exactly one version exists; otherwise throws — callers must pin versions until range support lands post-Phase-0.
 Why: freeze the load-bearing behavior (no silent overwrite, no ambiguous resolution) while marking the new shapes DRAFT so Phase 1+ can correct them cheaply.
 Consequence: 0C loader must pass exact versions; any edge change needs a DECISIONS note, not a silent edit.
+
+## 2026-10-08 — Bundle 0C design calls (payload envelope, Queue auth, JSON casts, test DB)
+Context: Prisma tables lack capability columns and Prisma's Json type fights strict TS; integration tests need a database that isn't the dev one.
+Decision: (1) Routing metadata (capability, requiredCapabilities) rides inside the payload JSON envelope, unwrapped only by toContractTask — no migration needed. (2) WorkerHost passes auth "local-trusted-host" (grep-able placeholder; PgQueue ignores it until Phase 8 multi-node auth). (3) JSONB writes cast via `as Prisma.InputJsonValue` at the boundary with why-comments; values are JSON by construction. (4) Integration tests require TEST_DATABASE_URL and skip loudly without it; CI runs a postgres service + migrate deploy; local test db is personalos_test (port 5433).
+Why: keep the schema stable, keep auth honest (no fake security), keep dev data unpolluted.
+Consequence: Phase 1+ must preserve the envelope shape; Phase 8 replaces the auth placeholder with real worker credentials.
