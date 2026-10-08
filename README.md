@@ -5,7 +5,8 @@ High-level goals in, planned multi-step work out: tasks, memory, scheduling, too
 structured personal data, and replaceable models/workers — surviving power cuts and
 1 Mbps internet on ₹0 budget.
 
-> Status: **Phase -1 (architecture freeze) complete. Phase 0 (platform skeleton) next.**
+> Status: **Phase 0 complete (v0.1): API + Postgres queue + worker core, crash recovery proven.**
+> Next: Phase 1 (autonomous core + reminders demo).
 > See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the phase plan and
 > [`PROGRESS.md`](PROGRESS.md) for the running log.
 
