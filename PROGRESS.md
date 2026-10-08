@@ -15,3 +15,8 @@
 - One contradiction found + resolved: spec's SQLite-prototype note vs PG16 lock → PG only, recorded.
 - File census: docs/*.md (8 files) + docs/ADRs (11) + .knowledge (2). Total ~800 lines of prep.
 - Next: user answers to blocking forks (asked in plain English) → then Phase 0 Bundle 0A code.
+
+## 2026-10-08 — Repo live: https://github.com/Rajathk6/PersonalOS
+- `git init` + committed 24 files (README, .knowledge x2, PROGRESS, original .docx, docs x8, ADRs x11) as `0e46c44` on `main`, pushed with `-u origin main`. Auth via existing `gh` login (Rajathk6, https).
+- Note: empty `apps/ packages/ src/` scaffold dirs are NOT tracked (git skips empty dirs) — they get real content in Phase 0 Bundle 0A.
+- Next: user answers to blocking forks (asked in plain English) → then Phase 0 Bundle 0A code.
