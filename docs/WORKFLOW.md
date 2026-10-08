@@ -25,9 +25,9 @@ feature/* --PR--> develop --release--> main (tagged v0.1, v0.2, ...)
    `npm run typecheck` + `npm run lint` + `npm test` green, plus the bundle's own
    runtime checks (boot, migrate, live HTTP, recovery simulation — see ROADMAP).
    Paste the results into the PR description. Red = no merge.
-4. **CI runs the same cycle** on every PR (`.github/workflows/ci.yml`):
-   install → typecheck → lint → test. CI is the bouncer; the human/agent reviewer
-   checks the runtime evidence in the PR body.
+4. **No CI until first prototype** (decision 2026-10-08): the merger pastes
+   verification evidence into the PR body and a second look (human or agent)
+   confirms it. CI returns in one small PR once Phase 1 works end to end.
 5. **`main` releases are deliberate:** when `develop` is green and a milestone is
    done, open a PR `develop → main`, verify again, merge, then tag
    (`git tag v0.x && git push --tags`). Tag message = what the release proves.
@@ -41,7 +41,7 @@ feature/* --PR--> develop --release--> main (tagged v0.1, v0.2, ...)
 
 | Cycle | When | What runs |
 |---|---|---|
-| Static | every PR | typecheck, lint, unit tests (CI + local) |
+| Static | every PR | typecheck, lint, unit tests (local; CI returns post-prototype) |
 | Runtime | every bundle | DB migrate, service boot, live request checks |
 | Recovery | bundles with state (0C, 1, 5) | kill/restart mid-task, stale-lease requeue, catch-up |
 | Release | develop → main | full static + runtime + recovery re-run on the merge |
