@@ -16,6 +16,7 @@ import {
   webTools,
 } from "@personalos/tools";
 import { createApp } from "./app.js";
+import { agentRouter } from "./agent.js";
 import { defaultHandlers } from "./handlers.js";
 import { logger } from "./logger.js";
 
@@ -29,6 +30,7 @@ export interface BootstrapOptions {
   leaseSeconds: number;
   ollamaUrl: string;
   modelTimeoutMs: number;
+  defaultModel: string;
   workspaceDir: string;
 }
 
@@ -99,13 +101,14 @@ export async function bootstrap(
   logger.info({ tools: toolRegistry.list().map((t) => t.name) }, "tools registered");
 
   let host: WorkerHost | null = null;
+  const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel };
   if (opts.workerEnabled) {
     host = new WorkerHost(prisma, queue, {
       workerId: opts.workerId,
       capabilities: opts.capabilities,
       pollMs: opts.pollMs,
       heartbeatSeconds: opts.heartbeatSeconds,
-      handlers: defaultHandlers(),
+      handlers: defaultHandlers(handlerDeps),
       onTaskError: (err, taskId) => logger.error({ err, taskId }, "worker task error"),
     });
     await host.start();
@@ -119,6 +122,7 @@ export async function bootstrap(
     workerStatus: () => (host === null ? "disabled" : "enabled"),
     modelIds: () => models.list().map((m) => m.id),
     tools: () => toolRegistry.list(),
+    agent: agentRouter(handlerDeps),
   });
 
   let server: Server | null = null;

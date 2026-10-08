@@ -74,6 +74,12 @@
 - Evidence: typecheck ✅ lint ✅ 46/46 ✅ (existing suites, per frozen-tests rule) + LIVE 10/10 executor paths (write/read/escape-refusal/delete-gate/shell-gate/destructive-deny/fetch/block/git/unknown-tool, all audited).
 - Next: Phase 4 — planner/executor/verifier roles (first real LLM caller through the wall).
 
+## 2026-10-09 — Phase 4 merged (PR #11 → develop)
+- Scope: @personalos/agents (planner + verifier, JSON-extract + 1 retry, tiny prompts) + api agent routes (POST /agent/run, POST /agent/verify — enqueue only) + agent.run/agent.verify worker handlers + router default-model preference + GET /tools already in.
+- Evidence: typecheck ✅ lint ✅ 46/46 ✅ + LIVE GATE PASS: goal "Remind me to drink a glass of water" → agent.run done in 195s (planned 1 child via qwen2.5:3b) → child reminder delivered → agent.verify done in 180s with ok=true. Gate rows cleaned; dev DB 0 tasks; API + Ollama stopped.
+- Handoff for tomorrow in docs/HANDOFF.md (startup commands, tokens, known truths, open threads).
+- Next: Phase 5 — scheduler + queue depth (recurring/delayed/catch-up/missed-run + power-loss sim), then release v0.3.
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)

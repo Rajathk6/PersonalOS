@@ -42,6 +42,7 @@ describe.skipIf(!TEST_URL)("task routes + worker slice", () => {
       leaseSeconds: 30,
       ollamaUrl: "http://127.0.0.1:1",
       modelTimeoutMs: 1000,
+      defaultModel: "qwen2.5:3b",
       workspaceDir: mkdtempSync(path.join(tmpdir(), "pos-test-ws-")),
     });
     base = `http://127.0.0.1:${svc.port}`;

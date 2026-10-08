@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { Task } from "@personalos/contracts";
-import type { TaskHandler } from "@personalos/core";
+import type { PgQueue, TaskHandler, TaskRepository } from "@personalos/core";
+import type { ModelRegistry } from "@personalos/models";
+import { agentRunHandler, agentVerifyHandler } from "./agent.js";
 import { logger } from "./logger.js";
 
 const ReminderInputSchema = z.object({
@@ -24,6 +26,18 @@ export const reminderSend: TaskHandler = async (task: Task): Promise<unknown> =>
   return { deliveredAt, text: parsed.data.text, channel: "log" };
 };
 
-export function defaultHandlers(): Map<string, TaskHandler> {
-  return new Map([["reminder.send", reminderSend]]);
+export interface HandlerDeps {
+  store: TaskRepository;
+  queue: PgQueue;
+  models: ModelRegistry;
+  defaultModel: string;
+}
+
+export function defaultHandlers(deps: HandlerDeps): Map<string, TaskHandler> {
+  const agentDeps = { store: deps.store, queue: deps.queue, models: deps.models, defaultModel: deps.defaultModel };
+  return new Map([
+    ["reminder.send", reminderSend],
+    ["agent.run", agentRunHandler(agentDeps)],
+    ["agent.verify", agentVerifyHandler(agentDeps)],
+  ]);
 }

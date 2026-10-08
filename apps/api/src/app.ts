@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Router } from "express";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import type { PrismaClient } from "@prisma/client";
@@ -15,6 +15,7 @@ export interface AppDeps {
   workerStatus: () => "enabled" | "disabled";
   modelIds: () => string[];
   tools: () => { name: string; version: string; description: string; risk: string }[];
+  agent: Router;
 }
 
 // App factory (not a singleton): production and tests each build their own
@@ -49,6 +50,7 @@ export function createApp(deps: AppDeps): Express {
   });
 
   app.use("/tasks", taskRouter(deps.store, deps.queue));
+  app.use("/agent", deps.agent);
 
   // Visibility only: which tools exist and their risk. Execution stays behind
   // the executor (Phase 4); there is deliberately no POST /tools/:name yet.
