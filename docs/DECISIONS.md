@@ -61,3 +61,15 @@ Context: Temptation to model money tables early.
 Decision: Phase 0 DATA_MODEL ships tasks/task_steps/workers/scheduled_jobs/audit_log only; finance verticals get one-line stubs. First real domain tables arrive with the Capability system.
 Why: building domain tables before the Capability manifest exists guarantees a Core rewrite later — the exact failure the spec warns about.
 Consequence: Phase 1 demo must use a non-money flow (recommendation: reminders).
+
+## 2026-10-08 — User forks answered (plain-English Q&A)
+Context: 4 blocking forks asked before Phase 0 code; user answered all.
+Decision: (1) API gets a simple token/password from env from day one. (2) PostgreSQL via Docker Compose. (3) Phase 1 demo = reminders ("remind me at 4 to leave at 6"). (4) Laptop-only for Phases 0–7; Pi joins at Phase 8.
+Why: user's own picks, all matching recommendations — safest defaults, zero sensitive-data risk in demo.
+Consequence: Bundle 0A includes API-token middleware + docker-compose.yml for PG16; worker/poll design assumes single machine but keeps registry-based (no hard-coded hosts) so Pi can join later.
+
+## 2026-10-08 — Old phone is a display, not a Pi replacement
+Context: User asked if a dummy old phone can replace the Raspberry Pi coordinator.
+Decision: No — phone stays a thin client. Its realistic future job: wall-mounted status/approval screen (task list, big Approve/Deny buttons) + notifications, arriving Phase 9. Coordinator role (PG + scheduler + queue, always-on) stays laptop-only until a Pi or equivalent cheap Linux box exists.
+Why (plain English): phones are bad at being always-on servers — Android force-stops background apps to save battery, Wi-Fi sleeps, no reliable Docker/Postgres, and leaving a phone plugged in 24/7 swells the battery. A Pi runs real Linux 24/7 without fighting the OS. Nothing in Phase 0–7 needs the phone, so this costs us nothing today.
+Consequence: no Termux/server-on-phone work planned; Phase 9 phone track will target this old phone as the first thin-client device.

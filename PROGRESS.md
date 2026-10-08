@@ -20,3 +20,7 @@
 - `git init` + committed 24 files (README, .knowledge x2, PROGRESS, original .docx, docs x8, ADRs x11) as `0e46c44` on `main`, pushed with `-u origin main`. Auth via existing `gh` login (Rajathk6, https).
 - Note: empty `apps/ packages/ src/` scaffold dirs are NOT tracked (git skips empty dirs) — they get real content in Phase 0 Bundle 0A.
 - Next: user answers to blocking forks (asked in plain English) → then Phase 0 Bundle 0A code.
+
+## 2026-10-08 — Forks answered, Phase 0 unblocked
+- User picks: API token auth, Docker PG, reminders demo, laptop-only; old phone = future status/approval display (Phase 9), NOT a Pi replacement. All recorded in docs/DECISIONS.md (11 entries total).
+- Next: Phase 0 Bundle 0A (scaffolding: workspaces, TS strict, Express boot, env config, pino, health, docker-compose PG16, Prisma init, token middleware).
