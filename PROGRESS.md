@@ -24,3 +24,31 @@
 ## 2026-10-08 — Forks answered, Phase 0 unblocked
 - User picks: API token auth, Docker PG, reminders demo, laptop-only; old phone = future status/approval display (Phase 9), NOT a Pi replacement. All recorded in docs/DECISIONS.md (11 entries total).
 - Next: Phase 0 Bundle 0A (scaffolding: workspaces, TS strict, Express boot, env config, pino, health, docker-compose PG16, Prisma init, token middleware).
+
+## 2026-10-08 — SDLC adopted: develop + feature branches, main frozen for releases
+- Created `develop` (from main); all future work rides `feature/*` → PR → `develop`; `main` takes tagged releases only. Rules + test cycles in docs/WORKFLOW.md; CI (install→typecheck→lint→test) on every PR in .github/workflows/ci.yml.
+- This branch (`feature/branching-workflow`) carries WORKFLOW.md + CI + decision log updates → PR into develop.
+
+## 2026-10-08 — Phase 0 Bundle 0A merged (PR #1 → develop)
+- Scope: workspaces, TS strict, eslint flat, Express boot (zod env, pino, Bearer auth, honest /health), docker-compose PG16, Prisma schema + initial migration.
+- Fixes during verification (all recorded in DECISIONS.md): prisma pinned v6 (RC8 dropped `migrate`), PG_PORT escape hatch (system PG owns 5432), .env fallback for `npm -w` cwd.
+- Evidence: typecheck ✅ lint ✅ test ✅ (no tests yet, passWithNoTests); migrate applied (tasks/task_steps/workers/scheduled_jobs/audit_log); live: /health 200, no-token 401, wrong-token 401, good-token 404.
+- `main` untouched since Phase -1 docs — first release tag comes after 0B+0C.
+- Next: Phase 0 Bundle 0B (contracts: ModelProvider/Tool/Capability/Permission types + registries + Zod).
+
+## 2026-10-08 — Phase 0 Bundle 0B merged (PR #3 → develop)
+- Scope: new package @personalos/contracts — all INTERFACES.md types (STABLE/DRAFT marked), Zod strict schemas for boundary types, ContractError (5 codes), generic in-memory Registry (register/replace/get/list, no silent overwrite, exact-version pinning) + lifecycle edge validation, 16 vitest tests.
+- Gap notes (honest, in PR): PermissionResult envelope added as DRAFT (spec had no data shape); lifecycle edges authored from NORTH_STAR chain; method-bearing interfaces (Tool/ModelProvider/Queue/Engine) are types-only by necessity; INCOMPATIBLE_VERSION/VALIDATION_FAILED reserved for 0C.
+- Evidence: typecheck ✅ lint ✅ 16/16 tests ✅. Root tsconfig now includes packages/*/src.
+- Next: Phase 0 Bundle 0C (task repository + PG queue + worker loop + boot recovery + restart test).
+
+## 2026-10-08 — Phase 0 Bundle 0C merged (PR #4 → develop) — PHASE 0 COMPLETE
+- Scope: new package @personalos/core — TaskRepository (idempotent create, guarded transitions, audit rows), PgQueue (SKIP LOCKED claim + capability match in SQL, complete/fail with retry budget, requeueStale), WorkerHost (register/heartbeat/poll/handler dispatch, fail-fast on unknown type), recoverOnBoot. CI upgraded with postgres service + migrate deploy.
+- Subagent attempt returned empty (no files); built directly instead — recorded as a process note, not a decision.
+- Evidence: typecheck ✅ lint ✅ 30/30 tests ✅ (16 contracts + 4 transitions + 3 worker + 7 real-PG integration: lease skip, capability match, crash→redelivery retryCount+1, retry exhaustion, idempotency, network parking, missing-handler fail-fast). Test DB empty after runs; dev DB untouched.
+- Next: release v0.1 to main (Phase 0 milestone), then Phase 1 (intent→plan→task→worker→result + reminders demo + restart-recovery gate).
+
+## 2026-10-08 — v0.1 released to main (Phase 0 milestone)
+- Release gate on `release/v0.1`: full re-run typecheck ✅ lint ✅ 30/30 ✅ + live `docker restart db` survival: probe task stayed queued, recoverOnBoot clean (1 kept), worker claimed + completed → done, probe row removed.
+- `main` now = Phase -1 docs + Phase 0 code (PRs #1–#4), tagged v0.1.
+- Next: Phase 1 — intent→planner→task→worker→result, POST /tasks + worker wiring, reminders demo, process-kill restart gate.

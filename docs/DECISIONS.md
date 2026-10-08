@@ -69,7 +69,43 @@ Why: user's own picks, all matching recommendations — safest defaults, zero se
 Consequence: Bundle 0A includes API-token middleware + docker-compose.yml for PG16; worker/poll design assumes single machine but keeps registry-based (no hard-coded hosts) so Pi can join later.
 
 ## 2026-10-08 — Old phone is a display, not a Pi replacement
-Context: User asked if a dummy old phone can replace the Raspberry Pi coordinator.
+Context: user asked if a spare old phone can replace the Raspberry Pi coordinator.
 Decision: No — phone stays a thin client. Its realistic future job: wall-mounted status/approval screen (task list, big Approve/Deny buttons) + notifications, arriving Phase 9. Coordinator role (PG + scheduler + queue, always-on) stays laptop-only until a Pi or equivalent cheap Linux box exists.
 Why (plain English): phones are bad at being always-on servers — Android force-stops background apps to save battery, Wi-Fi sleeps, no reliable Docker/Postgres, and leaving a phone plugged in 24/7 swells the battery. A Pi runs real Linux 24/7 without fighting the OS. Nothing in Phase 0–7 needs the phone, so this costs us nothing today.
 Consequence: no Termux/server-on-phone work planned; Phase 9 phone track will target this old phone as the first thin-client device.
+
+## 2026-10-08 — SDLC: feature branches → develop → tagged main (user directive)
+Context: User said stop committing to main; want dev branch + feature branches so stable releases are easy and rollback is possible.
+Decision: `main` = stable releases only (merges from develop + tag v0.x, revert-on-breakage); `develop` = integration via PRs; `feature/*` = one branch per bundle, merged + deleted. CI (typecheck+lint+test) runs on every PR to develop/main. Rules written in docs/WORKFLOW.md.
+Why: direct-to-main commits already happened for docs; code needs a safety net before it grows.
+Consequence: Bundle 0A merged as PR #1 (develop); main still holds Phase -1 docs only until first release.
+
+## 2026-10-08 — Prisma pinned to stable v6, no release candidates
+Context: Fresh `npm install prisma` pulled 8.0.0-rc.21 whose CLI dropped `migrate dev`.
+Decision: pin `prisma@6` + `@prisma/client@6` (6.19.3 verified). No alpha/beta/rc dependencies anywhere without an ADR.
+Why: skeleton must build reproducibly on a laptop with 1 Mbps; chasing RC breakage is pure waste.
+Consequence: package.json pins major 6; upgrades are deliberate PRs with migration re-test.
+
+## 2026-10-08 — PG_PORT escape hatch for Docker Postgres
+Context: Laptop already runs system PostgreSQL 16 on 5432 (localhost); container failed to bind.
+Decision: compose maps `${PG_PORT:-5432}:5432`; `.env.example` documents PG_PORT (default 5432); local `.env` uses 5433. System Postgres left untouched.
+Why: don't fight the host OS or force the user to stop system services; config, not code, absorbs the difference.
+Consequence: DATABASE_URL must match PG_PORT; noted in .env.example comments.
+
+## 2026-10-08 — .env loads from workspace cwd with repo-root fallback
+Context: API booted with "DATABASE_URL Required" under `npm run -w` because dotenv looked in apps/api instead of repo root.
+Decision: config.ts loads nearest `.env` first, then repo-root `.env` for missing vars (layout-relative path only, no absolutes).
+Why: both `npm run dev` (root) and `npm run -w` (workspace) must work; env resolution is a startup concern, not developer memory.
+Consequence: root `.env` stays gitignored; `.env.example` is the contract.
+
+## 2026-10-08 — Bundle 0B interpretations (PermissionResult, lifecycle edges, version pinning)
+Context: INTERFACES.md froze states and method names but not every transition detail; 0B had to fill small gaps without guessing policy.
+Decision: (1) Added DRAFT `PermissionResult { verdict, reason? }` envelope — INTERFACES.md had the engine signature but no data shape for the verdict crossing the worker boundary. (2) Lifecycle edges authored from the NORTH_STAR chain + re-enable edges (DISABLED/UPDATED→ENABLED) so a capability resumes without reinstall. (3) Registry `get()` without version resolves only when exactly one version exists; otherwise throws — callers must pin versions until range support lands post-Phase-0.
+Why: freeze the load-bearing behavior (no silent overwrite, no ambiguous resolution) while marking the new shapes DRAFT so Phase 1+ can correct them cheaply.
+Consequence: 0C loader must pass exact versions; any edge change needs a DECISIONS note, not a silent edit.
+
+## 2026-10-08 — Bundle 0C design calls (payload envelope, Queue auth, JSON casts, test DB)
+Context: Prisma tables lack capability columns and Prisma's Json type fights strict TS; integration tests need a database that isn't the dev one.
+Decision: (1) Routing metadata (capability, requiredCapabilities) rides inside the payload JSON envelope, unwrapped only by toContractTask — no migration needed. (2) WorkerHost passes auth "local-trusted-host" (grep-able placeholder; PgQueue ignores it until Phase 8 multi-node auth). (3) JSONB writes cast via `as Prisma.InputJsonValue` at the boundary with why-comments; values are JSON by construction. (4) Integration tests require TEST_DATABASE_URL and skip loudly without it; CI runs a postgres service + migrate deploy; local test db is personalos_test (port 5433).
+Why: keep the schema stable, keep auth honest (no fake security), keep dev data unpolluted.
+Consequence: Phase 1+ must preserve the envelope shape; Phase 8 replaces the auth placeholder with real worker credentials.
