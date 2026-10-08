@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// States stay String (not enum): DATA_MODEL uses CHECK constraints so the
+// state machine can grow without a migration rewriting an enum.
+model Task {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type           String
+  state          String
+  priority       Int       @default(0)
+  payload        Json      @default("{}") @db.JsonB
+  idempotencyKey String?   @unique @map("idempotency_key")
+  checkpoint     Json      @default("{}") @db.JsonB
+  retryCount     Int       @default(0) @map("retry_count")
+  maxRetries     Int       @default(3) @map("max_retries")
+  leaseOwner     String?   @map("lease_owner")
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  runAfter       DateTime  @default(now()) @map("run_after") @db.Timestamptz(6)
+  lastErrorCode  String?   @map("last_error_code")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  steps          TaskStep[]
+  auditLogs      AuditLog[]
+  scheduledJobs  ScheduledJob[]
+
+  @@map("tasks")
+  // Partial WHERE clauses (runnable states, null/expired lease, running
+  // only) cannot be expressed here; the migration adds them.
+  @@index([priority(sort: Desc), runAfter, createdAt], name: "tasks_runnable")
+  @@index([leaseExpiresAt], name: "tasks_lease")
+}
+
+model TaskStep {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId     String   @map("task_id") @db.Uuid
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  stepIndex  Int      @map("step_index")
+  kind       String
+  state      String
+  input      Json     @default("{}") @db.JsonB
+  output     Json?    @db.JsonB
+  checkpoint Json     @default("{}") @db.JsonB
+  retryCount Int      @default(0) @map("retry_count")
+  workerId   String?  @map("worker_id")
+  errorCode  String?  @map("error_code")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([taskId, stepIndex])
+  @@map("task_steps")
+}
+
+model Worker {
+  id            String   @id
+  capabilities  String[] @default([])
+  status        String   @default("online")
+  lastHeartbeat DateTime @default(now()) @map("last_heartbeat") @db.Timestamptz(6)
+  metadata      Json     @default("{}") @db.JsonB
+
+  @@map("workers")
+}
+
+model ScheduledJob {
+  name           String    @id
+  kind           String
+  schedule       String
+  payload        Json      @default("{}") @db.JsonB
+  enabled        Boolean   @default(true)
+  lastCheckpoint DateTime? @map("last_checkpoint") @db.Timestamptz(6)
+  lastTaskId     String?   @map("last_task_id") @db.Uuid
+  lastTask       Task?     @relation(fields: [lastTaskId], references: [id], onDelete: SetNull)
+  catchupPolicy  String    @default("since-last-success") @map("catchup_policy")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("scheduled_jobs")
+}
+
+model AuditLog {
+  id       BigInt   @id @default(autoincrement())
+  at       DateTime @default(now()) @db.Timestamptz(6)
+  who      String
+  action   String
+  policy   String?
+  workerId String?  @map("worker_id")
+  toolName String?  @map("tool_name")
+  taskId   String?  @map("task_id") @db.Uuid
+  task     Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  result   String
+  detail   Json     @default("{}") @db.JsonB
+
+  @@index([at], name: "audit_log_at_idx")
+  @@index([taskId], name: "audit_log_task_id_idx")
+  @@map("audit_log")
+}
