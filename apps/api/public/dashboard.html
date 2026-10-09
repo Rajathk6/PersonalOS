@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PersonalOS</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 12px; background: #111; color: #eee; }
+  h1 { font-size: 1.3em; margin: 0 0 8px; }
+  .card { background: #1c1c1c; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+  .card h2 { font-size: 1em; margin: 0 0 8px; color: #9cf; }
+  .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95em; }
+  button { font-size: 1.05em; padding: 12px 18px; margin: 4px 8px 4px 0; border: 0; border-radius: 8px; }
+  .approve { background: #2a7; color: #fff; }
+  .deny { background: #a33; color: #fff; }
+  .refresh { background: #357; color: #fff; width: 100%; }
+  .dim { color: #888; font-size: 0.85em; }
+  #tokenbox input { width: 70%; padding: 10px; font-size: 1em; }
+</style>
+</head>
+<body>
+<h1>PersonalOS</h1>
+<div id="tokenbox" class="card" style="display:none">
+  <h2>API token</h2>
+  <input id="token" type="password" placeholder="paste API token">
+  <button class="approve" onclick="saveToken()">Save</button>
+</div>
+<div class="card"><h2>Status</h2><div id="health" class="dim">loading…</div></div>
+<div class="card"><h2>Needs your approval <span id="acount"></span></h2><div id="approvals"></div></div>
+<div class="card"><h2>Recent tasks</h2><div id="tasks"></div></div>
+<div class="card"><h2>Money</h2><div id="money" class="dim">loading…</div></div>
+<div><button class="refresh" onclick="load()">Refresh</button></div>
+<script>
+let token = localStorage.getItem("pos_token") || "";
+if (!token) document.getElementById("tokenbox").style.display = "block";
+function saveToken() {
+  token = document.getElementById("token").value.trim();
+  localStorage.setItem("pos_token", token);
+  document.getElementById("tokenbox").style.display = "none";
+  load();
+}
+async function api(path, opts) {
+  const r = await fetch(path, { ...(opts || {}), headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json", ...((opts && opts.headers) || {}) } });
+  return r.json();
+}
+async function load() {
+  try {
+    const h = await api("/health");
+    document.getElementById("health").textContent =
+      `db ${h.db} · queue ${h.queue} · worker ${h.worker} · scheduler ${h.scheduler} · models ${(h.models || []).join(",")}`;
+    const a = await api("/approvals?status=pending");
+    document.getElementById("acount").textContent = `(${a.approvals.length})`;
+    document.getElementById("approvals").innerHTML = a.approvals.length === 0
+      ? '<span class="dim">nothing waiting</span>'
+      : a.approvals.map(x =>
+          `<div class="row"><span>${x.toolName}<br><span class="dim">${x.reason}</span></span>
+           <span><button class="approve" onclick="resolve('${x.id}',true)">Yes</button><button class="deny" onclick="resolve('${x.id}',false)">No</button></span></div>`
+        ).join("");
+    const t = await api("/tasks?state=done");
+    const q = await api("/tasks?state=queued");
+    document.getElementById("tasks").innerHTML =
+      `<div class="row"><span>queued</span><b>${q.tasks.length}</b></div>` +
+      t.tasks.slice(0, 5).map(x => `<div class="row"><span>${x.type}</span><span class="dim">${x.state}</span></div>`).join("");
+    const m = await api("/finance/summary");
+    document.getElementById("money").textContent = `net ${m.netWorth} · spent ${m.monthSpend}`;
+  } catch (e) {
+    document.getElementById("health").textContent = "unreachable — start the API";
+  }
+}
+async function resolve(id, ok) {
+  await api(`/approvals/${id}/${ok ? "approve" : "deny"}`, { method: "POST", body: JSON.stringify({ by: "phone" }) });
+  load();
+}
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

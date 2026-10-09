@@ -10,6 +10,9 @@ interface WorkerHostOptions {
   pollMs: number;
   heartbeatSeconds: number;
   handlers: Map<string, TaskHandler>;
+  // Crash barrier: a row deleted mid-run (or a DB blip between claim and
+  // persist) must never escape as an unhandled rejection that kills the host.
+  onTaskError?: (err: unknown, taskId: string | null) => void;
 }
 
 // Poll → claim → run → persist. The host never schedules, never judges
@@ -56,11 +59,11 @@ export class WorkerHost {
       data: { lastHeartbeat: new Date(), status: "online" },
     }).catch(() => undefined);
   }
-
   // Overlap guard: a slow handler must delay the next poll, never run twice.
   private async tick(): Promise<void> {
     if (this.stopped || this.ticking) return;
     this.ticking = true;
+    let taskId: string | null = null;
     try {
       // Phase 0 runs one trusted local host, so worker auth is unenforced
       // (PgQueue ignores it). Real credentials arrive with Phase 8
@@ -71,7 +74,10 @@ export class WorkerHost {
         auth: "local-trusted-host",
       });
       if (task === null) return;
+      taskId = task.id;
       await this.run(task);
+    } catch (err) {
+      this.opts.onTaskError?.(err, taskId);
     } finally {
       this.ticking = false;
     }

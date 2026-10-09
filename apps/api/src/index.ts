@@ -15,6 +15,17 @@ async function main(): Promise<void> {
     pollMs: config.workerPollMs,
     heartbeatSeconds: config.workerHeartbeatS,
     leaseSeconds: config.workerLeaseS,
+    ollamaUrl: config.ollamaUrl,
+    modelTimeoutMs: config.modelTimeoutMs,
+    defaultModel: config.defaultModel,
+    openRouterKey: config.openRouterKey,
+    openRouterUrl: config.openRouterUrl,
+    schedulerEnabled: config.schedulerEnabled,
+    schedulerPollMs: config.schedulerPollMs,
+    workerTokens: config.workerTokens,
+    livenessSweepS: config.livenessSweepS,
+    offlineAfterS: config.offlineAfterS,
+    workspaceDir: config.workspaceDir,
   });
 
   const shutdown = (signal: string): void => {

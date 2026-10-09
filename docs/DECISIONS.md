@@ -121,3 +121,87 @@ Context: CI (typecheck+lint+test on PRs + postgres service) was costing more att
 Decision: deleted .github/workflows/ci.yml entirely. Verification stays manual per-bundle (typecheck+lint+test+runtime evidence pasted in PRs) until the first prototype (Phase 1 reminders working) is done, then CI returns in one small PR.
 Why: prototype speed now, automation when the surface stabilizes.
 Consequence: PRs #6+ merge on human/agent-verified evidence only; re-add CI before Phase 2.
+
+## 2026-10-08 — Phase 2 model reality (qwen2.5:3b live on CPU)
+Context: Ollama 0.5.4 installed to ~/bin (no sudo), serving on 127.0.0.1:11434 CPU-only; qwen2.5:3b pulled (~1.9GB in ~10 min at ~4MB/s — dongle faster than feared).
+Decision: provider + registry + router built behind ADR-003 wall (grep gate: only provider touches /api/chat; endpoint lives in config). MODEL_TIMEOUT_MS default 300000 (first generation took 129s cold).
+Why: cold load + CPU inference is slow (~99s even warm for a short reply); 3B instruction-following is weak for exact-format tasks.
+Consequence: LLM stays off the critical path — rare, short, async worker tasks only; deterministic code paths preferred (already the architecture); Phase 4 prompts must be short with low maxTokens; num_predict passthrough added but cap behavior needs a later look.
+
+## 2026-10-08 — Tests frozen at current coverage until prototype (user directive)
+Context: User said stop spending time on tests; focus on development.
+Decision: no new tests, no repeated runs per step. Existing suites (46 tests) stay and must keep passing on bundle verification, but verification = typecheck + lint + one test run per bundle, nothing more.
+Why: prototype speed; the suites already cover contracts/queue/recovery/routes/provider.
+Consequence: Phase 3+ bundles ship with code + docs + one verification pass; test expansion resumes post-prototype.
+
+## 2026-10-09 — Phase 3 tool-wall calls (sandbox, confirmations, audit-everything)
+Context: Tools needed real safety without a UI for approvals yet.
+Decision: (1) Filesystem tools jailed to WORKSPACE_DIR via resolveInside prefix check, enforced in the tool AND the verdict (defense in depth); outside reads → Confirm, outside deletes → Denied. (2) Confirm verdicts never execute — executor returns CONFIRMATION_REQUIRED; durable approval queue waits for scheduler/phone phases. (3) Shell has a denylist enforced twice (policy + tool itself); everything else shell → Confirm. (4) web.fetch capped 1MB/30s with literal-IP private-range blocks (hostname DNS resolution guard deferred, documented). (5) Every executor path — including unknown-tool probes — writes an audit row.
+Why: no silent permissions, no fake approvals, no unbounded downloads on 1Mbps.
+Consequence: Phase 4 planner calls tools only through ToolExecutor; POST /tools execute endpoint arrives with the approval queue, not before.
+
+## 2026-10-09 — Phase 4 role calls (tiny prompts, tasks-not-requests, verify-waits)
+Context: 3B on CPU is slow and a weak narrator; requests must stay fast.
+Decision: (1) Planner/verifier prompts are minimal with JSON-only instruction + extract-first-{...} + exactly 1 retry. (2) /agent/run and /agent/verify only enqueue — all LLM work happens in worker handlers. (3) agent.verify on a non-done target fails retryable (VERIFY_EARLY); proper dependency-wait arrives Phase 5. (4) Router default: configured DEFAULT_MODEL wins ties after hint filtering.
+Why: 195s planner + 180s verifier calls would destroy request latency; retries are bounded so a confused model fails loudly instead of looping.
+Consequence: Phase 5 scheduler owns delayed/dependent execution; planner SYSTEM prompt must be updated as new task types land.
+
+## 2026-10-09 — Phase 5 scheduler calls (no cron, one covering run, poison disables)
+Context: Recurring work + outage catch-up without replay storms or new dependencies.
+Decision: (1) Schedule shapes = once{at} + every{seconds≥15, from?} only — no cron parser until a real calendar need appears. (2) Outage → ONE task with _catchup{missedPeriods}, checkpoint jumps to now. (3) Invalid schedule rows disable themselves + report via onError instead of spinning. (4) Scheduler + worker share the process behind flags until the Phase 8 split; both touch work only through the queue.
+Why: smallest mechanism that honors ADR-010; cron is a dependency plus a bug farm.
+Consequence: /schedules manages jobs; VERIFY_EARLY still burns retries until dependency-wait lands (carried open thread).
+
+## 2026-10-09 — Phase 6 memory calls (one table, upserts, no vectors yet)
+Context: Six memory kinds needed persistence without turning into a dump or a vector-science project.
+Decision: (1) Single memories table (kind/key/content/importance/confidence/source/expires); keyed kinds upsert on (kind,key), unkeyed append. (2) Recall = keyword + importance floor + expiry filter, ranked importance/freshness; no pgvector until semantic search earns it. (3) Agent handlers write task-memory (plan record) + episodic-memory (verdicts) automatically — memory goes live through use, not a separate UI. (4) Structured money/facts stay relational (Phase 7); memory never holds the books.
+Why: cheapest durable design that honors "don't vectorize everything" and "structured stays structured".
+Consequence: recall SQL is the seam where vector ranking plugs in later; callers unchanged.
+
+## 2026-10-09 — Phase 7A capability calls (manifest door, paise math, npm vs capability versions)
+Context: First vertical had to prove Core stays generic while money stays exact.
+Decision: (1) Every vertical enters via CapabilityRegistry.install (manifest schema + runtime compat + lifecycle walk + DB record); dynamic plugin loading waits for Phase 11. (2) Money in integer paise, sums in SQL/JS ints, formatted only for display — LLM never computes. (3) npm package version stays 0.0.0 for all workspaces; capability version lives in the manifest (finance@1.0.0) — mixing them broke npm install. (4) Task types are shells over executor tools; routes go through the executor too — no path bypasses permission+audit.
+Why: the chicken-tikka test (10000−235−99=9666 exactly) must hold forever, and Core must never learn what finance is.
+Consequence: 7B jobs monitor follows the same door; budgets/loans arrive as finance v1.x, never Core edits.
+
+## 2026-10-09 — Phase 7B jobs calls (deterministic discovery, notify-after-queue)
+Context: Job monitoring had to work without depending on weak 3B output.
+Decision: (1) Discovery = fetch via web.fetch tool (caps/audit apply) + literal keyword match + (watch,url,title) dedup — no model in the loop. (2) Handler notifies per fresh finding via reminder task, marks notified only after enqueue (crash keeps it un-notified → next check re-notifies). (3) Eligibility/exam analysis stays future work on top of stored findings (official facts vs inference separated from day one).
+Why: a missed alert is worse than a plain one; determinism first, smarts later.
+Consequence: scheduler can drive jobs.check_now on interval for autonomous monitoring.
+
+## 2026-10-09 — Phase 8 multinode calls (shared-DB topology, fail-closed tokens, sweep requeues)
+Context: No second machine yet — prove distribution with processes, not promises.
+Decision: (1) Topology = shared Postgres (Pi+laptop both reach it later); HTTP claim/complete/fail exists for DB-less workers, token-gated, lease-holder-checked (403/409). (2) WORKER_TOKENS empty = HTTP worker endpoints refuse everyone (fail closed). (3) Liveness sweep flips silent workers offline AND requeues their running tasks with WORKER_LOST + retry accounting (not just lease expiry — avoids poison-task spin). (4) apps/worker wires deterministic handlers only; agent/LLM handlers stay API-local until model topology is proven. (5) Heartbeats are the only liveness signal; one TCP success is not liveness.
+Why: distribution without shared assumptions; a dead worker's work moves in seconds, not at lease expiry.
+Consequence: Wake-on-LAN stays out (optional, hardware-dependent); HTTP worker path needs its own gate test when a DB-less worker exists.
+
+## 2026-10-09 — Phase 9 approval calls (park-don't-die, double-tap safe, phone is a page)
+Context: Confirm verdicts used to die in response bodies; the phone needed something to approve.
+Decision: (1) Confirm parks to approvals table and returns 202 + approvalId; approve runs the tool and records outcome, deny runs nothing. (2) Double approval → 409 ALREADY_RESOLVED, never a second execution. (3) Phone = one static dashboard.html (status, approvals with Yes/No, tasks, money), token in localStorage; no app build, no framework. (4) POST /tools/:name/run is the user's front door to the executor (same gate as workers).
+Why: approvals must survive restarts and fat fingers; a web page beats a native app for a wall display.
+Consequence: push notifications wait for a provider (documented gap); dashboard polls every 30s.
+
+## 2026-10-09 — Phase 10 ecosystem calls (discover-don't-replace, benchmark advises, cloud gated)
+Context: New models must arrive without code changes or surprise switches.
+Decision: (1) Boot discovers provider-served models; static catalog is fallback-only. Re-discover returns already[] — never blind-replaces. (2) Benchmark = 2 micro-tasks with trivially checkable answers; results persist as evidence; recommend() only orders the menu, DEFAULT_MODEL still picks. (3) OpenRouter registers only with a key set; empty key = no cloud provider, no spend. (4) Estimates (e.g. context length) are labeled in hwReqs, never presented as facts.
+Why: the spec's discovery flow with the sharp edges removed for prototype scale.
+Consequence: bigger benchmarks/cron refresh wait for real multi-model need; benchmark rows accumulate as history.
+
+## 2026-10-09 — Phase 11 builder calls (draft-normalize-review-approve, no codegen)
+Context: 3B drafting is slow (~7 min/attempt) and sloppy ("..." names, invented permissions).
+Decision: (1) LLM drafts manifests only — never code. (2) sanitizeManifest normalizes (drop unknowns, re-slug bad names, pin runtime) and REPORTS every change as a review warning. (3) Review stays deterministic and blocking on errors; approval installs design-only bundles (empty handlers/tools) — working code is still written by humans. (4) MODEL_TIMEOUT default 600000 for CPU reality; draft maxTokens 250.
+Why: the first live draft was correctly REJECTED (unknown permissions); the second passed only after normalization — the governance works, the model is just weak.
+Consequence: codegen stays out until a capable model exists; proposals table holds the audit trail of both outcomes.
+
+## 2026-10-09 — Phase 12 distribution calls (idempotent setup, dump discipline, boring services)
+Context: The prototype only matters if it installs, survives reboot, and survives a dead SSD.
+Decision: (1) setup.sh is BOTH install and update (idempotent re-run; proven live). (2) Backups = pg_dump custom format, 14 kept, gitignored, cron-ready; restore drops+recreates (no half-state); round-trip proven (2 caps + 2 benchmarks intact). (3) Autostart = plain systemd user units (Restart=always), no custom daemon. (4) health.sh is the single health word for humans/dashboards/systemd.
+Why: boring technology for the boring-but-critical layer; the interesting code stays in the platform.
+Consequence: all 12 phases built — prototype complete on develop; v0.3 + deferred test pass is the next milestone.
+
+## 2026-10-09 — Test pass v0.3: 3 real bugs from 71 tests (write-first works)
+Context: First full run of everything written since Phase 5: 68/71.
+Decision: fix all three: (1) /health lost its `worker` key in a later edit — restored (a dashboard consumer would have broken silently). (2) Capability test regex didn't match the code's actual error text — aligned to the contract message. (3) Scheduler fake re-filtered once at setup — findMany mock now filters per call like Postgres.
+Why: the pass paid for itself immediately (bug #1 was live breakage, not test pedantry).
+Consequence: 71/71 green, zero unhandled; test DB verified empty; policy stands — write tests with code, run the suite at bundle/release gates.

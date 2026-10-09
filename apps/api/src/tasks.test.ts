@@ -1,4 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import type { RunningService } from "./bootstrap.js";
 
@@ -37,6 +40,17 @@ describe.skipIf(!TEST_URL)("task routes + worker slice", () => {
       pollMs: 10,
       heartbeatSeconds: 60,
       leaseSeconds: 30,
+      ollamaUrl: "http://127.0.0.1:1",
+      modelTimeoutMs: 1000,
+      defaultModel: "qwen2.5:3b",
+      openRouterKey: null,
+      openRouterUrl: "https://openrouter.ai/api/v1",
+      schedulerEnabled: false,
+      schedulerPollMs: 50,
+      workerTokens: new Map(),
+      livenessSweepS: 60,
+      offlineAfterS: 120,
+      workspaceDir: mkdtempSync(path.join(tmpdir(), "pos-test-ws-")),
     });
     base = `http://127.0.0.1:${svc.port}`;
   });

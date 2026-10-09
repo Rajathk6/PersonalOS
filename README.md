@@ -5,8 +5,8 @@ High-level goals in, planned multi-step work out: tasks, memory, scheduling, too
 structured personal data, and replaceable models/workers — surviving power cuts and
 1 Mbps internet on ₹0 budget.
 
-> Status: **Phase 1 complete (v0.2): request → task → worker → result works; reminders survive kill -9.**
-> Next: Phase 2 (local model via Ollama, behind the provider wall).
+> Status: **v0.3 — full prototype, 71/71 tests green.**
+> Next: real-world use, Pi coordinator, phone wall display.
 > See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the phase plan and
 > [`PROGRESS.md`](PROGRESS.md) for the running log.
 
@@ -48,10 +48,18 @@ Intel i7 11th-gen · 12 GB RAM · Iris iGPU · 1 TB SSD · Linux · no NVIDIA ·
 
 | Phase | Goal | State |
 |---|---|---|
-| -1 | Architecture freeze + ADRs + conventions | ✅ done |
-| 0 | Minimal skeleton: API + PG + Core + Task persist + worker + interfaces | next |
-| 1 | Autonomous core: intent → plan → task → worker → result (+ restart-recovery test) | planned |
-| 2–12 | Local model, tools, verification, scheduler/queue, memory, capabilities, multi-node, phone, model ecosystem, capability builder, distribution | planned |
+| -1–1 | Architecture, skeleton, autonomous core + kill-9 gate | ✅ released (v0.2) |
+| 2–12 | Model, tools, planner, scheduler, memory, capabilities, multi-node, phone, model eco, builder, distribution | ✅ released (v0.3, 71/71 green) |
+
+## Quickstart
+
+```bash
+./scripts/setup.sh        # install / update: deps, db, migrate, build
+npm run dev -w @personalos/api   # API on :3000 (dashboard at /dashboard)
+./scripts/health.sh       # one-glance health
+./scripts/backup.sh        # timestamped Postgres dump (keeps 14)
+```
+Full runbook (services, cron backups, Pi plan): [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 
 ## Contribute / work with agents
 

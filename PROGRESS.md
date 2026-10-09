@@ -63,6 +63,75 @@
 - This proves the Phase 1 exit criterion: power loss never destroys persistent work; overdue work resumes on boot.
 - Next: release v0.2 to main, then Phase 2 (Ollama behind ModelProvider — zero direct imports outside provider).
 
+## 2026-10-08 — Phase 2 merged (PR #9 → develop)
+- Scope: @personalos/models — OllamaProvider (sole HTTP speaker, timeout/abort/mapped errors, maxTokens→num_predict), ModelRegistry, route() hints, qwen2.5:3b catalog entry; api config (OLLAMA_URL/DEFAULT_MODEL/MODEL_TIMEOUT_MS) + bootstrap registration + /health models list; worker tick crash barrier (onTaskError) from a real unhandled-rejection find.
+- Evidence: typecheck ✅ lint ✅ 46/46 ✅; grep gate (only provider contains /api/chat); LIVE: routed qwen2.5:3b via registry, real generation returned (129s cold / 99s warm — slow CPU inference recorded, timeout default raised).
+- Tests frozen per directive: existing suites stay green, no new test work until prototype.
+- Next: Phase 3 — tools (fs/web/shell/git) behind the permission wall.
+
+## 2026-10-09 — Phase 3 merged (PR #10 → develop)
+- Scope: @personalos/tools — DefaultPermissionEngine + policy table (auto/ask/deny, destructive denylist), ToolRegistry, ToolExecutor (verdict gate, CONFIRMATION_REQUIRED parking, audit-everything), fs (sandbox-jailed read/write/delete), web.fetch (1MB/30s caps, private-IP blocks), shell.execute (double-enforced denylist), git status/log; api wiring (WORKSPACE_DIR, registry, audit sink, GET /tools).
+- Evidence: typecheck ✅ lint ✅ 46/46 ✅ (existing suites, per frozen-tests rule) + LIVE 10/10 executor paths (write/read/escape-refusal/delete-gate/shell-gate/destructive-deny/fetch/block/git/unknown-tool, all audited).
+- Next: Phase 4 — planner/executor/verifier roles (first real LLM caller through the wall).
+
+## 2026-10-09 — Phase 4 merged (PR #11 → develop)
+- Scope: @personalos/agents (planner + verifier, JSON-extract + 1 retry, tiny prompts) + api agent routes (POST /agent/run, POST /agent/verify — enqueue only) + agent.run/agent.verify worker handlers + router default-model preference + GET /tools already in.
+- Evidence: typecheck ✅ lint ✅ 46/46 ✅ + LIVE GATE PASS: goal "Remind me to drink a glass of water" → agent.run done in 195s (planned 1 child via qwen2.5:3b) → child reminder delivered → agent.verify done in 180s with ok=true. Gate rows cleaned; dev DB 0 tasks; API + Ollama stopped.
+- Handoff for tomorrow in docs/HANDOFF.md (startup commands, tokens, known truths, open threads).
+- Next: Phase 5 — scheduler + queue depth (recurring/delayed/catch-up/missed-run + power-loss sim), then release v0.3.
+
+## 2026-10-09 — Phase 5 merged (PR #12 → develop)
+- Scope: @personalos/scheduler (ScheduleSpec once/every, pure nextDue/isDue/missedPeriods, Scheduler tick with crash barrier + self-disabling poison rows) + api /schedules CRUD + bootstrap wiring (SCHEDULER_ENABLED/POLL_MS) + health scheduler status. Tests WRITTEN, NOT RUN (prototype rule).
+- Evidence: typecheck ✅ lint ✅ + LIVE: every-30s reminder fired on period; kill -9 through ~3 missed periods → cold boot fired exactly ONE catch-up (missedPeriods: 2), delivered, no replays. Demo rows cleaned; dev DB 0 tasks; server stopped.
+- Next: Phase 6 — memory (working/episodic/semantic/user/procedural/task, selective indexing).
+
+## 2026-10-09 — Phase 6 merged (PR #13 → develop)
+- Scope: @personalos/memory (MemoryStore remember/recall/forget, keyed upserts, expiry, ranked recall) + memories migration + api /memory CRUD/search + agent handlers auto-record task/episodic memory. Tests WRITTEN, NOT RUN (prototype rule).
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ (checked properly — earlier `| tail` checks were masking failures; lesson recorded in HANDOFF) + LIVE: profile remember→upsert same id→search found→expired row excluded→delete 204. Fixed real bugs found live: Prisma value-import, duplicate scheduler key, audit exactOptional, AgentDeps memory.
+- Demo rows cleaned; dev DB 0 tasks + 0 memories; server stopped.
+- Next: Phase 7 — capability system + first real verticals (finance + jobs monitor as capabilities).
+
+## 2026-10-09 — Phase 7A merged (PR #14 → develop)
+- Scope: @personalos/capabilities (registry, lifecycle walk, compat gate, DB record) + @personalos/finance (manifest 1.0.0, paise-integer store, 3 tools, 2 task handlers, /finance router) + policy finance.* Allowed + bootstrap install + worker merge. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE chicken-tikka test: account + ₹100 income + ₹2.35 expense (API) + 99p expense (worker task path) → summary exactly 9666 net / 334 spend. Finance install persists in installed_capabilities; demo money cleaned; server stopped.
+- Next: Phase 7B — jobs monitor vertical (watches + deterministic keyword findings + match notifications).
+
+## 2026-10-09 — Phase 7B merged (PR #15 → develop) — PHASE 7 COMPLETE
+- Scope: @personalos/jobs 0.1.0 (manifest, pure match/title fns, store with dedup, jobs.check tool via executor+web.fetch, check-then-notify handler, /jobs router) + policy jobs.check Allowed + bootstrap install + worker merge. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: watch created → check_now found "Engineering - Wikipedia" [engineer] → reminder delivered → notified=true; second check → still 1 finding (no dup, no re-notify). Demo rows cleaned; installed_capabilities keeps finance@1.0.0 + jobs@0.1.0; server stopped.
+- Next: Phase 8 — multi-node runtime (worker registry, heartbeats, Pi coordinator prep) — or v0.3 release first; user's call.
+
+## 2026-10-09 — Phase 8 merged (PR #16 → develop)
+- Scope: core sweepOfflineWorkers (offline flip + immediate requeue with WORKER_LOST accounting) + api /workers (register/heartbeat/list/claim/complete/fail, token auth, lease-holder 409s) + apps/worker standalone process + liveness sweep interval + WORKER_TOKENS/LIVENESS/OFFLINE config. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE two-process proof: 4 reminders split 3/1 across worker-a/B, no double-claim; HTTP claim held by worker-c (simulated crash) → sweep offline → requeued retry+1 → capable replacement delivered done; 403 on bad token, 409 on hijack-complete. Plus process-hygiene lesson recorded (orphaned tsx children).
+- Dev DB 0 tasks / 0 workers; all servers down; DB container left running.
+- Next: user's call — v0.3 release (+deferred test pass) or Phase 9 phone, 10 model eco, 11 builder, 12 distribution.
+
+## 2026-10-09 — Phase 9 merged (PR #17 → develop)
+- Scope: approvals table + core ApprovalStore (one-way pending→approved/denied→executed/failed) + executor parking (202+approvalId) + resolveApproval (approve runs, deny skips, double→409) + api POST /tools/:name/run, /approvals list/approve/deny + static phone dashboard. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: shell echo parked 202 → pending listed → approved → executed "hello-from-phone" → double-approve 409; dashboard 200. Demo rows + audit residue cleaned (0/0); server stopped.
+- Next: Phase 10 model ecosystem, 11 capability builder, 12 distribution — or v0.3 release + test pass first.
+
+## 2026-10-09 — Phase 10 merged (PR #18 → develop)
+- Scope: @personalos/models OpenRouter (key-gated), discoverOllama/OpenRouter (estimates labeled), 2-task micro-benchmark + BenchmarkStore, recommend() (orders menu, never switches) + api /models list/discover/benchmark/recommendations + boot discovery with static fallback. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: boot discovered qwen2.5:3b with real /api/show metadata (32k ctx, Q4_K_M); re-discover → already; benchmark 2/2 (84s + 24s); recommendations ranked with reasons. Benchmark rows kept as history. API + ollama stopped; DB running.
+- Next: Phase 11 capability builder, 12 distribution — or v0.3 release + test pass first.
+
+## 2026-10-09 — Phase 11 merged (PR #19 → develop)
+- Scope: @personalos/builder (draftManifest, sanitizeManifest, deterministic reviewManifest) + proposals table + api /builder propose/list/approve + builder.propose worker handler + approve→install wiring. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE full loop on motorcycle domain: draft 1 correctly REJECTED (invented permissions); draft 2 normalized (re-slugged, unknowns dropped) → reviewed/passed → approved → installed as track-motorcycle-fuel-fill@0.1.0 alongside finance+jobs. ~21 min of CPU drafting total. Demo rows cleaned; servers stopped.
+- Next: Phase 12 distribution (installer/image, setup, backups) — or v0.3 release + test pass first.
+
+## 2026-10-09 — Phase 12 merged (PR #20 → develop) — PROTOTYPE COMPLETE
+- Scope: scripts/setup.sh (install+update, idempotent), backup.sh/restore.sh (14 kept, gitignored, cron-ready), health.sh, systemd user units, docs/RUNBOOK.md, version 0.3.0-dev. No new tests (scripts verified by running them).
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: backup 28K → drop+restore → 2 caps + 2 benchmarks intact; setup.sh re-run clean (no pending migrations); health.sh HEALTHY with 0.3.0-dev. Server stopped; first real backup kept in backups/ (gitignored).
+- Next: deferred test pass (run everything written since Phase 5) + v0.3 release to main.
+
+## 2026-10-09 — Test pass done: 71/71, then v0.3 released
+- First full run: 68/71 → fixed a live /health regression (lost worker key), a test-regex mismatch, and a stale scheduler mock → 71/71 green, zero unhandled errors, test DB empty, typecheck+lint exit 0.
+- v0.3 tagged on main = the whole prototype (Phases 0–12, PRs #1–#20 plus fixes).
+- Standing rule from here: tests are written WITH code and RUN at every bundle gate — no more deferred debt.
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)

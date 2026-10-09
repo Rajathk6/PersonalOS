@@ -26,15 +26,16 @@ model Task {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  steps          TaskStep[]
-  auditLogs      AuditLog[]
-  scheduledJobs  ScheduledJob[]
+  steps         TaskStep[]
+  auditLogs     AuditLog[]
+  scheduledJobs ScheduledJob[]
+  memories      Memory[]
 
-  @@map("tasks")
   // Partial WHERE clauses (runnable states, null/expired lease, running
   // only) cannot be expressed here; the migration adds them.
   @@index([priority(sort: Desc), runAfter, createdAt], name: "tasks_runnable")
   @@index([leaseExpiresAt], name: "tasks_lease")
+  @@map("tasks")
 }
 
 model TaskStep {
@@ -99,4 +100,157 @@ model AuditLog {
   @@index([at], name: "audit_log_at_idx")
   @@index([taskId], name: "audit_log_task_id_idx")
   @@map("audit_log")
+}
+
+// Memory (Phase 6): six record kinds, one table. No vector column yet —
+// retrieval is keyword + importance/recency ranking; pgvector arrives only
+// when semantic search earns it (spec: don't vectorize everything).
+// Keyed facts (user/procedural) upsert on (kind, key); NULL keys never
+// conflict in Postgres, so unkeyed episodes coexist freely.
+model Memory {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind         String
+  key          String?
+  content      Json      @db.JsonB
+  importance   Float     @default(0.5)
+  confidence   Float     @default(1.0)
+  sourceTaskId String?   @map("source_task_id") @db.Uuid
+  sourceTask   Task?     @relation(fields: [sourceTaskId], references: [id], onDelete: SetNull)
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([kind, key])
+  @@index([kind, importance(sort: Desc), updatedAt(sort: Desc)], name: "memories_recall")
+  @@map("memories")
+}
+
+// Capability installs (Phase 7): which manifests are installed + enabled.
+// Code still ships with the release (dynamic plugin loading is Phase 11);
+// this table is the source of truth for what is ACTIVE, so disabling needs
+// no redeploy.
+model InstalledCapability {
+  name      String   @id
+  version   String
+  manifest  Json     @db.JsonB
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("installed_capabilities")
+}
+
+// Finance vertical (Phase 7A): money in minor units (paise), never floats.
+// Deterministic sums only — the LLM explains, never computes.
+model Account {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  type      String   @default("cash")
+  currency  String   @default("INR")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  transactions Transaction[]
+
+  @@unique([name])
+  @@map("accounts")
+}
+
+model Transaction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  kind        String
+  amountPaise Int      @map("amount_paise")
+  currency    String   @default("INR")
+  category    String?
+  note        String?
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([accountId, occurredAt], name: "transactions_account_time")
+  @@map("transactions")
+}
+
+// Jobs vertical (Phase 7B): watches + findings. Matching is deterministic
+// keyword search — the LLM may later summarize a finding, but discovery
+// itself never depends on model output (official facts vs inference).
+model JobWatch {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  keywords      String[]  @default([])
+  sources       String[]  @default([])
+  enabled       Boolean   @default(true)
+  lastCheckedAt DateTime? @map("last_checked_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  findings JobFinding[]
+
+  @@unique([name])
+  @@map("job_watches")
+}
+
+model JobFinding {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  watchId         String   @map("watch_id") @db.Uuid
+  watch           JobWatch @relation(fields: [watchId], references: [id], onDelete: Cascade)
+  sourceUrl       String   @map("source_url")
+  title           String
+  snippet         String?
+  matchedKeywords String[] @default([]) @map("matched_keywords")
+  notified        Boolean  @default(false)
+  foundAt         DateTime @default(now()) @map("found_at") @db.Timestamptz(6)
+
+  @@unique([watchId, sourceUrl, title])
+  @@map("job_findings")
+}
+
+// Approvals (Phase 9): durable human-in-the-loop. A Confirm verdict parks
+// the action HERE instead of dying in a response body — the phone (or any
+// client) approves later, and only then does the tool run.
+model Approval {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  toolName  String   @map("tool_name")
+  input     Json     @db.JsonB
+  actor     String
+  workerId  String?  @map("worker_id")
+  taskId    String?  @map("task_id") @db.Uuid
+  reason    String
+  status    String   @default("pending")
+  result    Json?    @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt], name: "approvals_pending")
+  @@map("approvals")
+}
+
+// Model benchmarks (Phase 10): evidence for recommendations, never a trigger
+// for automatic switches. One row per (model, task, run) — history shows
+// whether a model got better or worse across versions.
+model ModelBenchmark {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  modelId   String   @map("model_id")
+  task      String
+  ok        Boolean
+  latencyMs Int      @map("latency_ms")
+  ranAt     DateTime @default(now()) @map("ran_at") @db.Timestamptz(6)
+
+  @@index([modelId, ranAt(sort: Desc)], name: "model_benchmarks_model_time")
+  @@map("model_benchmarks")
+}
+
+// Capability proposals (Phase 11): natural-language domain descriptions
+// turned into reviewed manifest designs. A proposal is a DESIGN ARTIFACT —
+// working handlers/tools code still gets written by a human (or a future
+// codegen phase); approval registers the design, not imaginary code.
+model CapabilityProposal {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  description String
+  manifest    Json     @db.JsonB
+  review      Json     @default("{}") @db.JsonB
+  status      String   @default("proposed")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("capability_proposals")
 }

@@ -1,0 +1,13 @@
+export { OllamaProvider } from "./ollama-provider.js";
+export type { OllamaProviderOptions } from "./ollama-provider.js";
+export { ModelError } from "./ollama-provider.js";
+export { OpenRouterProvider } from "./openrouter-provider.js";
+export { ModelRegistry, route } from "./registry.js";
+export type { RegisteredModel, RouteHints } from "./registry.js";
+export { discoverOllama, discoverOpenRouter } from "./discovery.js";
+export { BENCHMARK_TASKS, runBenchmark } from "./benchmark.js";
+export type { BenchmarkTask, BenchmarkResult, BenchmarkReport } from "./benchmark.js";
+export { recommend } from "./recommend.js";
+export type { RankedModel } from "./recommend.js";
+export { BenchmarkStore } from "./benchmark-store.js";
+export { qwen25_3b } from "./catalog.js";

@@ -3,5 +3,5 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["apps/api/src", "packages/*/src"]
+  "include": ["apps/api/src", "apps/worker/src", "packages/*/src"]
 }
