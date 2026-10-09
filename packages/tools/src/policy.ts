@@ -15,6 +15,9 @@ const DEFAULTS: PolicyRule[] = [
   { tool: "filesystem.write", verdict: "Allowed", reason: "writes inside the workspace are reversible" },
   { tool: "git.status", verdict: "Allowed", reason: "read-only" },
   { tool: "git.log", verdict: "Allowed", reason: "read-only" },
+  { tool: "finance.record_expense", verdict: "Allowed", reason: "reversible money record, no movement" },
+  { tool: "finance.record_income", verdict: "Allowed", reason: "reversible money record, no movement" },
+  { tool: "finance.summary", verdict: "Allowed", reason: "read-only analysis" },
   { tool: "filesystem.delete", verdict: "Confirm", reason: "deletion needs a human" },
   { tool: "shell.execute", verdict: "Confirm", reason: "shell always needs a human unless denied outright" },
 ];

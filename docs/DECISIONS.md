@@ -157,3 +157,9 @@ Context: Six memory kinds needed persistence without turning into a dump or a ve
 Decision: (1) Single memories table (kind/key/content/importance/confidence/source/expires); keyed kinds upsert on (kind,key), unkeyed append. (2) Recall = keyword + importance floor + expiry filter, ranked importance/freshness; no pgvector until semantic search earns it. (3) Agent handlers write task-memory (plan record) + episodic-memory (verdicts) automatically — memory goes live through use, not a separate UI. (4) Structured money/facts stay relational (Phase 7); memory never holds the books.
 Why: cheapest durable design that honors "don't vectorize everything" and "structured stays structured".
 Consequence: recall SQL is the seam where vector ranking plugs in later; callers unchanged.
+
+## 2026-10-09 — Phase 7A capability calls (manifest door, paise math, npm vs capability versions)
+Context: First vertical had to prove Core stays generic while money stays exact.
+Decision: (1) Every vertical enters via CapabilityRegistry.install (manifest schema + runtime compat + lifecycle walk + DB record); dynamic plugin loading waits for Phase 11. (2) Money in integer paise, sums in SQL/JS ints, formatted only for display — LLM never computes. (3) npm package version stays 0.0.0 for all workspaces; capability version lives in the manifest (finance@1.0.0) — mixing them broke npm install. (4) Task types are shells over executor tools; routes go through the executor too — no path bypasses permission+audit.
+Why: the chicken-tikka test (10000−235−99=9666 exactly) must hold forever, and Core must never learn what finance is.
+Consequence: 7B jobs monitor follows the same door; budgets/loans arrive as finance v1.x, never Core edits.
