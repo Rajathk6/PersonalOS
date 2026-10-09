@@ -20,6 +20,9 @@ async function main(): Promise<void> {
     defaultModel: config.defaultModel,
     schedulerEnabled: config.schedulerEnabled,
     schedulerPollMs: config.schedulerPollMs,
+    workerTokens: config.workerTokens,
+    livenessSweepS: config.livenessSweepS,
+    offlineAfterS: config.offlineAfterS,
     workspaceDir: config.workspaceDir,
   });
 

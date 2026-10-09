@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import type { Server } from "node:http";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { PgQueue, TaskRepository, WorkerHost, recoverOnBoot } from "@personalos/core";
+import { PgQueue, TaskRepository, WorkerHost, recoverOnBoot, sweepOfflineWorkers } from "@personalos/core";
 import { ModelRegistry, OllamaProvider, qwen25_3b } from "@personalos/models";
 import { MemoryStore } from "@personalos/memory";
 import { CapabilityRegistry } from "@personalos/capabilities";
@@ -36,6 +36,7 @@ import { createApp } from "./app.js";
 import { agentRouter } from "./agent.js";
 import { memoryRouter } from "./memory.js";
 import { scheduleRouter } from "./schedules.js";
+import { workerRouter } from "./workers.js";
 import { defaultHandlers } from "./handlers.js";
 import { logger } from "./logger.js";
 
@@ -52,6 +53,9 @@ export interface BootstrapOptions {
   defaultModel: string;
   schedulerEnabled: boolean;
   schedulerPollMs: number;
+  workerTokens: Map<string, string>;
+  livenessSweepS: number;
+  offlineAfterS: number;
   workspaceDir: string;
 }
 
@@ -197,7 +201,20 @@ export async function bootstrap(
     memory: memoryRouter(memory),
     finance: financeRouter(financeStore, toolExecutor),
     jobs: jobsRouter(jobsStore, queue),
+    workers: workerRouter({ prisma, store, queue, tokens: opts.workerTokens }),
   });
+
+  // Liveness sweep: dead workers flip offline and their tasks requeue now
+  // instead of at lease expiry. Idempotent, safe beside any other sweeper.
+  const sweepTimer = setInterval(() => {
+    void sweepOfflineWorkers(prisma, opts.offlineAfterS)
+      .then((report) => {
+        if (report.markedOffline.length > 0 || report.requeued > 0 || report.failed > 0) {
+          logger.info(report, "liveness sweep");
+        }
+      })
+      .catch((err: unknown) => logger.error({ err }, "liveness sweep failed"));
+  }, opts.livenessSweepS * 1000);
 
   let server: Server | null = null;
   let boundPort = opts.port;
@@ -218,6 +235,7 @@ export async function bootstrap(
     tools: toolExecutor,
     port: boundPort,
     stop: async (): Promise<void> => {
+      clearInterval(sweepTimer);
       if (host !== null) await host.stop();
       if (scheduler !== null) await scheduler.stop();
       await new Promise<void>((resolve, reject) => {

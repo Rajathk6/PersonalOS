@@ -45,6 +45,9 @@ describe.skipIf(!TEST_URL)("task routes + worker slice", () => {
       defaultModel: "qwen2.5:3b",
       schedulerEnabled: false,
       schedulerPollMs: 50,
+      workerTokens: new Map(),
+      livenessSweepS: 60,
+      offlineAfterS: 120,
       workspaceDir: mkdtempSync(path.join(tmpdir(), "pos-test-ws-")),
     });
     base = `http://127.0.0.1:${svc.port}`;

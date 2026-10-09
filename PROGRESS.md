@@ -101,6 +101,12 @@
 - Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: watch created → check_now found "Engineering - Wikipedia" [engineer] → reminder delivered → notified=true; second check → still 1 finding (no dup, no re-notify). Demo rows cleaned; installed_capabilities keeps finance@1.0.0 + jobs@0.1.0; server stopped.
 - Next: Phase 8 — multi-node runtime (worker registry, heartbeats, Pi coordinator prep) — or v0.3 release first; user's call.
 
+## 2026-10-09 — Phase 8 merged (PR #16 → develop)
+- Scope: core sweepOfflineWorkers (offline flip + immediate requeue with WORKER_LOST accounting) + api /workers (register/heartbeat/list/claim/complete/fail, token auth, lease-holder 409s) + apps/worker standalone process + liveness sweep interval + WORKER_TOKENS/LIVENESS/OFFLINE config. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE two-process proof: 4 reminders split 3/1 across worker-a/B, no double-claim; HTTP claim held by worker-c (simulated crash) → sweep offline → requeued retry+1 → capable replacement delivered done; 403 on bad token, 409 on hijack-complete. Plus process-hygiene lesson recorded (orphaned tsx children).
+- Dev DB 0 tasks / 0 workers; all servers down; DB container left running.
+- Next: user's call — v0.3 release (+deferred test pass) or Phase 9 phone, 10 model eco, 11 builder, 12 distribution.
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)
