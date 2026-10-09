@@ -24,6 +24,20 @@
 ## Update
 `git pull && ./scripts/setup.sh`, then restart API/worker (or let systemd pick up the next restart).
 
+## Phone from anywhere (not just home WiFi)
+The dashboard works on home WiFi out of the box. From mobile data or outside,
+your phone can't see your laptop — that gap is filled by a private network
+link, NOT by new PersonalOS code (building our own relay would be a security
+project of its own; the platform stays network-agnostic by design).
+- Recommended: **Tailscale** (free for personal use, encrypted, no router changes).
+  1. Laptop: `curl -fsSL https://tailscale.com/install.sh | sh` (needs your password), then `sudo tailscale up` and log in in the browser it opens.
+  2. Phone: install the Tailscale app, log in with the SAME account.
+  3. On the laptop run `tailscale ip -4` (looks like `100.x.y.z`), then open `http://100.x.y.z:3000/dashboard` on the phone. Same token as before.
+- The Pi story is unchanged: Pi at home = always-on coordinator (API + DB),
+  laptop = worker, phone = thin client — and the Pi joins the same Tailscale
+  network so the phone reaches it from anywhere. An old phone is NOT a server
+  (battery + process kills); it makes a fine wall display on WiFi.
+
 ## Raspberry Pi later
 Same steps on the Pi (it becomes coordinator: API + DB + scheduler). The laptop then runs only `apps/worker` pointed at the Pi's Postgres (`DATABASE_URL` → Pi). No code changes — that was the whole point of Phases 0–8.
 
