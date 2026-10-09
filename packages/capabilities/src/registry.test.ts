@@ -27,7 +27,7 @@ describe("CapabilityRegistry", () => {
     const registry = new CapabilityRegistry();
     await expect(
       registry.install({ manifest: { ...good, compat: { runtime: "other/9" } }, handlers: new Map(), tools: [] }),
-    ).rejects.toThrowError(/INCOMPATIBLE|incompatible|needs/i);
+    ).rejects.toThrowError(/bad runtime|needs/i);
     await expect(
       registry.install({ manifest: { ...good, name: "" }, handlers: new Map(), tools: [] }),
     ).rejects.toThrowError();

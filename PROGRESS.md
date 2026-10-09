@@ -127,6 +127,11 @@
 - Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: backup 28K → drop+restore → 2 caps + 2 benchmarks intact; setup.sh re-run clean (no pending migrations); health.sh HEALTHY with 0.3.0-dev. Server stopped; first real backup kept in backups/ (gitignored).
 - Next: deferred test pass (run everything written since Phase 5) + v0.3 release to main.
 
+## 2026-10-09 — Test pass done: 71/71, then v0.3 released
+- First full run: 68/71 → fixed a live /health regression (lost worker key), a test-regex mismatch, and a stale scheduler mock → 71/71 green, zero unhandled errors, test DB empty, typecheck+lint exit 0.
+- v0.3 tagged on main = the whole prototype (Phases 0–12, PRs #1–#20 plus fixes).
+- Standing rule from here: tests are written WITH code and RUN at every bundle gate — no more deferred debt.
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)

@@ -64,6 +64,7 @@ export function createApp(deps: AppDeps): Express {
           db: "online",
           queue: "ready",
           scheduler: deps.schedulerStatus(),
+          worker: deps.workerStatus(),
           models: deps.modelIds(),
           version,
         });
