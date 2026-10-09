@@ -80,6 +80,11 @@
 - Handoff for tomorrow in docs/HANDOFF.md (startup commands, tokens, known truths, open threads).
 - Next: Phase 5 — scheduler + queue depth (recurring/delayed/catch-up/missed-run + power-loss sim), then release v0.3.
 
+## 2026-10-09 — Phase 5 merged (PR #12 → develop)
+- Scope: @personalos/scheduler (ScheduleSpec once/every, pure nextDue/isDue/missedPeriods, Scheduler tick with crash barrier + self-disabling poison rows) + api /schedules CRUD + bootstrap wiring (SCHEDULER_ENABLED/POLL_MS) + health scheduler status. Tests WRITTEN, NOT RUN (prototype rule).
+- Evidence: typecheck ✅ lint ✅ + LIVE: every-30s reminder fired on period; kill -9 through ~3 missed periods → cold boot fired exactly ONE catch-up (missedPeriods: 2), delivered, no replays. Demo rows cleaned; dev DB 0 tasks; server stopped.
+- Next: Phase 6 — memory (working/episodic/semantic/user/procedural/task, selective indexing).
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)

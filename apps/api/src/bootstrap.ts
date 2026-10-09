@@ -6,6 +6,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { PgQueue, TaskRepository, WorkerHost, recoverOnBoot } from "@personalos/core";
 import { ModelRegistry, OllamaProvider, qwen25_3b } from "@personalos/models";
+import { Scheduler } from "@personalos/scheduler";
 import {
   DefaultPermissionEngine,
   ToolExecutor,
@@ -17,6 +18,7 @@ import {
 } from "@personalos/tools";
 import { createApp } from "./app.js";
 import { agentRouter } from "./agent.js";
+import { scheduleRouter } from "./schedules.js";
 import { defaultHandlers } from "./handlers.js";
 import { logger } from "./logger.js";
 
@@ -31,6 +33,8 @@ export interface BootstrapOptions {
   ollamaUrl: string;
   modelTimeoutMs: number;
   defaultModel: string;
+  schedulerEnabled: boolean;
+  schedulerPollMs: number;
   workspaceDir: string;
 }
 
@@ -101,6 +105,7 @@ export async function bootstrap(
   logger.info({ tools: toolRegistry.list().map((t) => t.name) }, "tools registered");
 
   let host: WorkerHost | null = null;
+  let scheduler: Scheduler | null = null;
   const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel };
   if (opts.workerEnabled) {
     host = new WorkerHost(prisma, queue, {
@@ -115,14 +120,28 @@ export async function bootstrap(
     logger.info({ workerId: opts.workerId }, "worker started");
   }
 
+  // Scheduler shares the process for now (same Phase 5/8 split story as the
+  // worker): it only enqueues through the queue, never executes inline.
+  if (opts.schedulerEnabled) {
+    scheduler = new Scheduler(prisma, {
+      pollMs: opts.schedulerPollMs,
+      enqueue: (t) => queue.enqueue({ ...t, requiredCapabilities: [] }),
+      onError: (err, jobName) => logger.error({ err, jobName }, "scheduler job error"),
+    });
+    scheduler.start();
+    logger.info("scheduler started");
+  }
+
   const app = createApp({
     prisma,
     store,
     queue,
     workerStatus: () => (host === null ? "disabled" : "enabled"),
+    schedulerStatus: () => (scheduler === null ? "disabled" : "ready"),
     modelIds: () => models.list().map((m) => m.id),
     tools: () => toolRegistry.list(),
     agent: agentRouter(handlerDeps),
+    schedules: scheduleRouter(prisma),
   });
 
   let server: Server | null = null;
@@ -145,6 +164,7 @@ export async function bootstrap(
     port: boundPort,
     stop: async (): Promise<void> => {
       if (host !== null) await host.stop();
+      if (scheduler !== null) await scheduler.stop();
       await new Promise<void>((resolve, reject) => {
         if (server === null) return resolve();
         server.close((err) => (err === undefined ? resolve() : reject(err)));
