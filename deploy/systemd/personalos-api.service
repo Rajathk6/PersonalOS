@@ -1,0 +1,16 @@
+[Unit]
+Description=PersonalOS API + scheduler + in-process worker
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Personal/Projects/personalOS
+Environment=DATABASE_URL=postgresql://personalos:personalos@localhost:5433/personalos
+ExecStartPre=/usr/bin/docker compose up -d db
+ExecStart=/usr/bin/npm run dev -w @personalos/api
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

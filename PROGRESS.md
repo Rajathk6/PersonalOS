@@ -122,6 +122,11 @@
 - Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE full loop on motorcycle domain: draft 1 correctly REJECTED (invented permissions); draft 2 normalized (re-slugged, unknowns dropped) → reviewed/passed → approved → installed as track-motorcycle-fuel-fill@0.1.0 alongside finance+jobs. ~21 min of CPU drafting total. Demo rows cleaned; servers stopped.
 - Next: Phase 12 distribution (installer/image, setup, backups) — or v0.3 release + test pass first.
 
+## 2026-10-09 — Phase 12 merged (PR #20 → develop) — PROTOTYPE COMPLETE
+- Scope: scripts/setup.sh (install+update, idempotent), backup.sh/restore.sh (14 kept, gitignored, cron-ready), health.sh, systemd user units, docs/RUNBOOK.md, version 0.3.0-dev. No new tests (scripts verified by running them).
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: backup 28K → drop+restore → 2 caps + 2 benchmarks intact; setup.sh re-run clean (no pending migrations); health.sh HEALTHY with 0.3.0-dev. Server stopped; first real backup kept in backups/ (gitignored).
+- Next: deferred test pass (run everything written since Phase 5) + v0.3 release to main.
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)
