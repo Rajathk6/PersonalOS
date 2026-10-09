@@ -199,3 +199,9 @@ Context: The prototype only matters if it installs, survives reboot, and survive
 Decision: (1) setup.sh is BOTH install and update (idempotent re-run; proven live). (2) Backups = pg_dump custom format, 14 kept, gitignored, cron-ready; restore drops+recreates (no half-state); round-trip proven (2 caps + 2 benchmarks intact). (3) Autostart = plain systemd user units (Restart=always), no custom daemon. (4) health.sh is the single health word for humans/dashboards/systemd.
 Why: boring technology for the boring-but-critical layer; the interesting code stays in the platform.
 Consequence: all 12 phases built — prototype complete on develop; v0.3 + deferred test pass is the next milestone.
+
+## 2026-10-09 — Test pass v0.3: 3 real bugs from 71 tests (write-first works)
+Context: First full run of everything written since Phase 5: 68/71.
+Decision: fix all three: (1) /health lost its `worker` key in a later edit — restored (a dashboard consumer would have broken silently). (2) Capability test regex didn't match the code's actual error text — aligned to the contract message. (3) Scheduler fake re-filtered once at setup — findMany mock now filters per call like Postgres.
+Why: the pass paid for itself immediately (bug #1 was live breakage, not test pedantry).
+Consequence: 71/71 green, zero unhandled; test DB verified empty; policy stands — write tests with code, run the suite at bundle/release gates.

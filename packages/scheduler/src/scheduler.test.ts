@@ -15,7 +15,8 @@ interface FakeJob {
 function fakeDb(jobs: FakeJob[]) {
   return {
     scheduledJob: {
-      findMany: vi.fn().mockResolvedValue(jobs.filter((j) => j.enabled)),
+      // Re-filter per call: findMany must see disables, like real Postgres.
+      findMany: vi.fn().mockImplementation(async () => jobs.filter((j) => j.enabled)),
       update: vi.fn().mockImplementation(async ({ where, data }: { where: { name: string }; data: Partial<FakeJob> }) => {
         const job = jobs.find((j) => j.name === where.name);
         if (!job) throw new Error("missing");
