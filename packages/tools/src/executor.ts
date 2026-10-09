@@ -23,6 +23,18 @@ export interface AuditSink {
 export interface ExecutorOptions {
   sandboxRoot: string; // workspace dir; enriches filesystem verdicts with insideWorkspace
   audit: AuditSink;
+  // Durable approvals (Phase 9): when present, Confirm verdicts park here and
+  // return an approvalId; absent preserves the old message-only behavior.
+  // Structural (not imported) so tools never depends on core's ApprovalStore.
+  approvals?: {
+    request(input: {
+      toolName: string; input: unknown; actor: string;
+      workerId?: string; taskId?: string; reason: string;
+    }): Promise<{ id: string }>;
+    get(id: string): Promise<{ status: string; toolName: string; input: unknown } | null>;
+    resolvePending(id: string, status: "approved" | "denied"): Promise<boolean>;
+    markExecuted(id: string, result: unknown, ok: boolean): Promise<void>;
+  };
 }
 
 // The gate (ARCHITECTURE §2/§7): no tool runs without a verdict. Confirm
@@ -77,13 +89,28 @@ export class ToolExecutor {
       return { success: false, error_code: "DENIED", retryable: false, message: `denied: ${reason}` };
     }
     if (verdict === "Confirm") {
+      let approvalId: string | null = null;
+      if (this.opts.approvals !== undefined) {
+        const approval = await this.opts.approvals.request({
+          toolName: name,
+          input,
+          actor,
+          ...(context.workerId !== undefined ? { workerId: context.workerId } : {}),
+          ...(context.taskId !== undefined ? { taskId: context.taskId } : {}),
+          reason,
+        });
+        approvalId = approval.id;
+      }
       await this.opts.audit({
         ...base, ...ids, policy: "Confirm",
         result: "confirmation-required", detail: { reason },
       });
       return {
         success: false, error_code: "CONFIRMATION_REQUIRED", retryable: false,
-        message: `needs human confirmation: ${reason}`,
+        message: approvalId === null
+          ? `needs human confirmation: ${reason}`
+          : `parked for human confirmation (approval ${approvalId}): ${reason}`,
+        ...(approvalId === null ? {} : { metadata: { approvalId } }),
       };
     }
     let result: ToolResult;
@@ -99,6 +126,52 @@ export class ToolExecutor {
       ...base, ...ids, policy: "Allowed",
       result: result.success ? "ok" : (result.error_code ?? "failed"),
       detail: { reason },
+    });
+    return result;
+  }
+
+  // Second half of human-in-the-loop: approve (or deny) a parked action.
+  // Approve runs the tool NOW and records the outcome; deny runs nothing.
+  // Double approval is a no-op returning the stored outcome shape, never a
+  // second execution.
+  async resolveApproval(id: string, approve: boolean, approver: string): Promise<ToolResult> {
+    const port = this.opts.approvals;
+    if (port === undefined) {
+      return { success: false, error_code: "NO_APPROVAL_STORE", retryable: false, message: "approvals not configured" };
+    }
+    if (!approve) {
+      const claimed = await port.resolvePending(id, "denied");
+      return claimed
+        ? { success: false, error_code: "DENIED_BY_HUMAN", retryable: false, message: `approval ${id} denied by ${approver}` }
+        : { success: false, error_code: "ALREADY_RESOLVED", retryable: false, message: `approval ${id} already resolved` };
+    }
+    const approval = await port.get(id);
+    if (approval === null || approval.status !== "pending") {
+      return { success: false, error_code: "ALREADY_RESOLVED", retryable: false, message: `approval ${id} already resolved` };
+    }
+    const claimed = await port.resolvePending(id, "approved");
+    if (!claimed) {
+      return { success: false, error_code: "ALREADY_RESOLVED", retryable: false, message: `approval ${id} already resolved` };
+    }
+    let tool: Tool;
+    try {
+      tool = this.tools.get(approval.toolName);
+    } catch {
+      await port.markExecuted(id, { error: "tool no longer registered" }, false);
+      return { success: false, error_code: "UNKNOWN_TOOL", retryable: false, message: `tool ${approval.toolName} gone` };
+    }
+    let result: ToolResult;
+    try {
+      result = await tool.execute(approval.input);
+    } catch (err) {
+      result = { success: false, error_code: "TOOL_CRASH", retryable: false, message: err instanceof Error ? err.message : "tool threw" };
+    }
+    await port.markExecuted(id, result, result.success);
+    await this.opts.audit({
+      who: approver, action: `tool.${approval.toolName}`, policy: "Confirm-approved",
+      toolName: approval.toolName,
+      result: result.success ? "ok" : (result.error_code ?? "failed"),
+      detail: { approvalId: id },
     });
     return result;
   }

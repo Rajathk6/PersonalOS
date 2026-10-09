@@ -5,6 +5,7 @@ import type { Server } from "node:http";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { PgQueue, TaskRepository, WorkerHost, recoverOnBoot, sweepOfflineWorkers } from "@personalos/core";
+import { ApprovalStore } from "@personalos/core";
 import { ModelRegistry, OllamaProvider, qwen25_3b } from "@personalos/models";
 import { MemoryStore } from "@personalos/memory";
 import { CapabilityRegistry } from "@personalos/capabilities";
@@ -34,8 +35,10 @@ import {
 } from "@personalos/tools";
 import { createApp } from "./app.js";
 import { agentRouter } from "./agent.js";
+import { approvalRouter } from "./approvals.js";
 import { memoryRouter } from "./memory.js";
 import { scheduleRouter } from "./schedules.js";
+import { toolRunRouter } from "./tools.js";
 import { workerRouter } from "./workers.js";
 import { defaultHandlers } from "./handlers.js";
 import { logger } from "./logger.js";
@@ -108,6 +111,7 @@ export async function bootstrap(
   }
   const toolExecutor = new ToolExecutor(toolRegistry, new DefaultPermissionEngine(), {
     sandboxRoot: workspaceRoot,
+    approvals: new ApprovalStore(prisma),
     audit: async (entry) => {
       await prisma.auditLog.create({
         data: {
@@ -202,6 +206,8 @@ export async function bootstrap(
     finance: financeRouter(financeStore, toolExecutor),
     jobs: jobsRouter(jobsStore, queue),
     workers: workerRouter({ prisma, store, queue, tokens: opts.workerTokens }),
+    toolRun: toolRunRouter(toolExecutor),
+    approvals: approvalRouter(new ApprovalStore(prisma), toolExecutor),
   });
 
   // Liveness sweep: dead workers flip offline and their tasks requeue now

@@ -7,5 +7,7 @@ export { WorkerHost } from "./worker.js";
 export type { TaskHandler } from "./worker.js";
 export { sweepOfflineWorkers } from "./liveness.js";
 export type { LivenessReport } from "./liveness.js";
+export { ApprovalStore, ApprovalStatusSchema } from "./approvals.js";
+export type { Approval, ApprovalStatus } from "./approvals.js";
 export { recoverOnBoot } from "./recovery.js";
 export type { RecoveryReport } from "./recovery.js";

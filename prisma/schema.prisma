@@ -203,3 +203,23 @@ model JobFinding {
   @@unique([watchId, sourceUrl, title])
   @@map("job_findings")
 }
+
+// Approvals (Phase 9): durable human-in-the-loop. A Confirm verdict parks
+// the action HERE instead of dying in a response body — the phone (or any
+// client) approves later, and only then does the tool run.
+model Approval {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  toolName  String   @map("tool_name")
+  input     Json     @db.JsonB
+  actor     String
+  workerId  String?  @map("worker_id")
+  taskId    String?  @map("task_id") @db.Uuid
+  reason    String
+  status    String   @default("pending")
+  result    Json?    @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt], name: "approvals_pending")
+  @@map("approvals")
+}

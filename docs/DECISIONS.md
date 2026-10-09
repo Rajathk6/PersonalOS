@@ -175,3 +175,9 @@ Context: No second machine yet — prove distribution with processes, not promis
 Decision: (1) Topology = shared Postgres (Pi+laptop both reach it later); HTTP claim/complete/fail exists for DB-less workers, token-gated, lease-holder-checked (403/409). (2) WORKER_TOKENS empty = HTTP worker endpoints refuse everyone (fail closed). (3) Liveness sweep flips silent workers offline AND requeues their running tasks with WORKER_LOST + retry accounting (not just lease expiry — avoids poison-task spin). (4) apps/worker wires deterministic handlers only; agent/LLM handlers stay API-local until model topology is proven. (5) Heartbeats are the only liveness signal; one TCP success is not liveness.
 Why: distribution without shared assumptions; a dead worker's work moves in seconds, not at lease expiry.
 Consequence: Wake-on-LAN stays out (optional, hardware-dependent); HTTP worker path needs its own gate test when a DB-less worker exists.
+
+## 2026-10-09 — Phase 9 approval calls (park-don't-die, double-tap safe, phone is a page)
+Context: Confirm verdicts used to die in response bodies; the phone needed something to approve.
+Decision: (1) Confirm parks to approvals table and returns 202 + approvalId; approve runs the tool and records outcome, deny runs nothing. (2) Double approval → 409 ALREADY_RESOLVED, never a second execution. (3) Phone = one static dashboard.html (status, approvals with Yes/No, tasks, money), token in localStorage; no app build, no framework. (4) POST /tools/:name/run is the user's front door to the executor (same gate as workers).
+Why: approvals must survive restarts and fat fingers; a web page beats a native app for a wall display.
+Consequence: push notifications wait for a provider (documented gap); dashboard polls every 30s.
