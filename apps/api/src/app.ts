@@ -26,6 +26,7 @@ export interface AppDeps {
   workers: Router;
   toolRun: Router;
   approvals: Router;
+  modelsRoute: Router;
 }
 
 // App factory (not a singleton): production and tests each build their own
@@ -79,6 +80,7 @@ export function createApp(deps: AppDeps): Express {
   app.use("/workers", deps.workers);
   app.use("/tools", deps.toolRun);
   app.use("/approvals", deps.approvals);
+  app.use("/models", deps.modelsRoute);
 
   // Visibility only: which tools exist and their risk. Execution stays behind
   // the executor (Phase 4); there is deliberately no POST /tools/:name yet.

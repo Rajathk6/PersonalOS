@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@personalos/contracts": "0.0.0",
+    "@prisma/client": "^6.19.3",
     "zod": "^3.23.8"
   }
 }
