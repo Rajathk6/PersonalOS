@@ -6,6 +6,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { PgQueue, TaskRepository, WorkerHost, recoverOnBoot } from "@personalos/core";
 import { ModelRegistry, OllamaProvider, qwen25_3b } from "@personalos/models";
+import { MemoryStore } from "@personalos/memory";
 import { Scheduler } from "@personalos/scheduler";
 import {
   DefaultPermissionEngine,
@@ -18,6 +19,7 @@ import {
 } from "@personalos/tools";
 import { createApp } from "./app.js";
 import { agentRouter } from "./agent.js";
+import { memoryRouter } from "./memory.js";
 import { scheduleRouter } from "./schedules.js";
 import { defaultHandlers } from "./handlers.js";
 import { logger } from "./logger.js";
@@ -93,11 +95,11 @@ export async function bootstrap(
           who: entry.who,
           action: entry.action,
           policy: entry.policy,
-          workerId: entry.workerId,
           toolName: entry.toolName,
-          taskId: entry.taskId,
           result: entry.result,
           detail: entry.detail as Prisma.InputJsonValue,
+          ...(entry.workerId !== undefined ? { workerId: entry.workerId } : {}),
+          ...(entry.taskId !== undefined ? { taskId: entry.taskId } : {}),
         },
       });
     },
@@ -106,7 +108,8 @@ export async function bootstrap(
 
   let host: WorkerHost | null = null;
   let scheduler: Scheduler | null = null;
-  const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel };
+  const memory = new MemoryStore(prisma);
+  const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel, memory };
   if (opts.workerEnabled) {
     host = new WorkerHost(prisma, queue, {
       workerId: opts.workerId,
@@ -142,6 +145,7 @@ export async function bootstrap(
     tools: () => toolRegistry.list(),
     agent: agentRouter(handlerDeps),
     schedules: scheduleRouter(prisma),
+    memory: memoryRouter(memory),
   });
 
   let server: Server | null = null;

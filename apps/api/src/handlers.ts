@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Task } from "@personalos/contracts";
 import type { PgQueue, TaskHandler, TaskRepository } from "@personalos/core";
+import type { MemoryStore } from "@personalos/memory";
 import type { ModelRegistry } from "@personalos/models";
 import { agentRunHandler, agentVerifyHandler } from "./agent.js";
 import { logger } from "./logger.js";
@@ -31,10 +32,11 @@ export interface HandlerDeps {
   queue: PgQueue;
   models: ModelRegistry;
   defaultModel: string;
+  memory: MemoryStore;
 }
 
 export function defaultHandlers(deps: HandlerDeps): Map<string, TaskHandler> {
-  const agentDeps = { store: deps.store, queue: deps.queue, models: deps.models, defaultModel: deps.defaultModel };
+  const agentDeps = { store: deps.store, queue: deps.queue, models: deps.models, defaultModel: deps.defaultModel, memory: deps.memory };
   return new Map([
     ["reminder.send", reminderSend],
     ["agent.run", agentRunHandler(agentDeps)],

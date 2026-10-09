@@ -26,15 +26,16 @@ model Task {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  steps          TaskStep[]
-  auditLogs      AuditLog[]
-  scheduledJobs  ScheduledJob[]
+  steps         TaskStep[]
+  auditLogs     AuditLog[]
+  scheduledJobs ScheduledJob[]
+  memories      Memory[]
 
-  @@map("tasks")
   // Partial WHERE clauses (runnable states, null/expired lease, running
   // only) cannot be expressed here; the migration adds them.
   @@index([priority(sort: Desc), runAfter, createdAt], name: "tasks_runnable")
   @@index([leaseExpiresAt], name: "tasks_lease")
+  @@map("tasks")
 }
 
 model TaskStep {
@@ -99,4 +100,27 @@ model AuditLog {
   @@index([at], name: "audit_log_at_idx")
   @@index([taskId], name: "audit_log_task_id_idx")
   @@map("audit_log")
+}
+
+// Memory (Phase 6): six record kinds, one table. No vector column yet —
+// retrieval is keyword + importance/recency ranking; pgvector arrives only
+// when semantic search earns it (spec: don't vectorize everything).
+// Keyed facts (user/procedural) upsert on (kind, key); NULL keys never
+// conflict in Postgres, so unkeyed episodes coexist freely.
+model Memory {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind         String
+  key          String?
+  content      Json      @db.JsonB
+  importance   Float     @default(0.5)
+  confidence   Float     @default(1.0)
+  sourceTaskId String?   @map("source_task_id") @db.Uuid
+  sourceTask   Task?     @relation(fields: [sourceTaskId], references: [id], onDelete: SetNull)
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([kind, key])
+  @@index([kind, importance(sort: Desc), updatedAt(sort: Desc)], name: "memories_recall")
+  @@map("memories")
 }

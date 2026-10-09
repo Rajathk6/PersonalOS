@@ -85,6 +85,12 @@
 - Evidence: typecheck ✅ lint ✅ + LIVE: every-30s reminder fired on period; kill -9 through ~3 missed periods → cold boot fired exactly ONE catch-up (missedPeriods: 2), delivered, no replays. Demo rows cleaned; dev DB 0 tasks; server stopped.
 - Next: Phase 6 — memory (working/episodic/semantic/user/procedural/task, selective indexing).
 
+## 2026-10-09 — Phase 6 merged (PR #13 → develop)
+- Scope: @personalos/memory (MemoryStore remember/recall/forget, keyed upserts, expiry, ranked recall) + memories migration + api /memory CRUD/search + agent handlers auto-record task/episodic memory. Tests WRITTEN, NOT RUN (prototype rule).
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ (checked properly — earlier `| tail` checks were masking failures; lesson recorded in HANDOFF) + LIVE: profile remember→upsert same id→search found→expired row excluded→delete 204. Fixed real bugs found live: Prisma value-import, duplicate scheduler key, audit exactOptional, AgentDeps memory.
+- Demo rows cleaned; dev DB 0 tasks + 0 memories; server stopped.
+- Next: Phase 7 — capability system + first real verticals (finance + jobs monitor as capabilities).
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)
