@@ -129,8 +129,12 @@
 
 ## 2026-10-09 — Test pass done: 71/71, then v0.3 released
 - First full run: 68/71 → fixed a live /health regression (lost worker key), a test-regex mismatch, and a stale scheduler mock → 71/71 green, zero unhandled errors, test DB empty, typecheck+lint exit 0.
-- v0.3 tagged on main = the whole prototype (Phases 0–12, PRs #1–#20 plus fixes).
+- v0.3 tagged on main = the whole prototype (Phases 0–12, PRs #1–#22). develop synced back.
 - Standing rule from here: tests are written WITH code and RUN at every bundle gate — no more deferred debt.
+
+## End of day 2026-10-09 — all quiet
+- main = v0.3, develop synced, working tree clean. DB container running; dev DB 0 tasks; API/ollama/workers stopped. First backup in backups/ (gitignored).
+- Tomorrow: real-world use (daily reminders? expense tracking?), Pi coordinator, phone wall display, or new verticals. HANDOFF.md holds startup + lessons.
 
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
