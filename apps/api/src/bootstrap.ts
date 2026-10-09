@@ -43,6 +43,7 @@ import {
 import { createApp } from "./app.js";
 import { agentRouter } from "./agent.js";
 import { approvalRouter } from "./approvals.js";
+import { builderProposeHandler, builderRouter } from "./builder.js";
 import { memoryRouter } from "./memory.js";
 import { modelRouter } from "./models.js";
 import { scheduleRouter } from "./schedules.js";
@@ -183,10 +184,16 @@ export async function bootstrap(
   let scheduler: Scheduler | null = null;
   const memory = new MemoryStore(prisma);
   const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel, memory };
+  const builderDeps = {
+    prisma, store, queue, models,
+    defaultModel: opts.defaultModel,
+    capabilities, tools: toolRegistry,
+  };
   const allHandlers = new Map([
     ...defaultHandlers(handlerDeps),
     ...financeHandlers(toolExecutor),
     ...jobsHandlers({ store, queue, executor: toolExecutor, jobs: jobsStore }),
+    ["builder.propose", builderProposeHandler(builderDeps)],
   ]);
   if (opts.workerEnabled) {
     host = new WorkerHost(prisma, queue, {
@@ -226,6 +233,7 @@ export async function bootstrap(
     memory: memoryRouter(memory),
     finance: financeRouter(financeStore, toolExecutor),
     jobs: jobsRouter(jobsStore, queue),
+    builder: builderRouter(builderDeps),
     workers: workerRouter({ prisma, store, queue, tokens: opts.workerTokens }),
     toolRun: toolRunRouter(toolExecutor),
     approvals: approvalRouter(new ApprovalStore(prisma), toolExecutor),

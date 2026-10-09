@@ -114,8 +114,13 @@
 
 ## 2026-10-09 — Phase 10 merged (PR #18 → develop)
 - Scope: @personalos/models OpenRouter (key-gated), discoverOllama/OpenRouter (estimates labeled), 2-task micro-benchmark + BenchmarkStore, recommend() (orders menu, never switches) + api /models list/discover/benchmark/recommendations + boot discovery with static fallback. Tests WRITTEN, NOT RUN.
-- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: boot discovered qwen2.5:3b with real /api/show metadata (32k ctx, Q4_K_M); re-discover → already; benchmark 2/2 (84s + 24s); recommendations ranked with reasons. Benchmark rows kept as history. Server stopped; ollama serve left running.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: boot discovered qwen2.5:3b with real /api/show metadata (32k ctx, Q4_K_M); re-discover → already; benchmark 2/2 (84s + 24s); recommendations ranked with reasons. Benchmark rows kept as history. API + ollama stopped; DB running.
 - Next: Phase 11 capability builder, 12 distribution — or v0.3 release + test pass first.
+
+## 2026-10-09 — Phase 11 merged (PR #19 → develop)
+- Scope: @personalos/builder (draftManifest, sanitizeManifest, deterministic reviewManifest) + proposals table + api /builder propose/list/approve + builder.propose worker handler + approve→install wiring. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE full loop on motorcycle domain: draft 1 correctly REJECTED (invented permissions); draft 2 normalized (re-slugged, unknowns dropped) → reviewed/passed → approved → installed as track-motorcycle-fuel-fill@0.1.0 alongside finance+jobs. ~21 min of CPU drafting total. Demo rows cleaned; servers stopped.
+- Next: Phase 12 distribution (installer/image, setup, backups) — or v0.3 release + test pass first.
 
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.

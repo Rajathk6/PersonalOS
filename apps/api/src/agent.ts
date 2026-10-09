@@ -54,14 +54,14 @@ export function agentRouter(deps: AgentDeps): Router {
   return router;
 }
 
-function pickModel(deps: AgentDeps): { id: string; provider: ModelProvider } {
+export function pickModel(models: ModelRegistry, defaultModel: string): { id: string; provider: ModelProvider } {
   // Router picks by hints; the configured default wins ties (local-first
   // privacy out of the box, override via config with no code change).
-  const ordered = [...deps.models.list()].sort((a, b) =>
-    a.id === deps.defaultModel ? -1 : b.id === deps.defaultModel ? 1 : 0,
+  const ordered = [...models.list()].sort((a, b) =>
+    a.id === defaultModel ? -1 : b.id === defaultModel ? 1 : 0,
   );
   const meta = route(ordered, { privacySensitive: true });
-  return { id: meta.id, provider: deps.models.get(meta.id).provider };
+  return { id: meta.id, provider: models.get(meta.id).provider };
 }
 
 // Planner role: goal -> child tasks. Creates real queued tasks and returns
@@ -72,7 +72,7 @@ export function agentRunHandler(deps: AgentDeps): TaskHandler {
     if (!parsed.success) {
       throw Object.assign(new Error("agent.run needs { goal }"), { code: "AGENT_BAD_INPUT" });
     }
-    const picked = pickModel(deps);
+    const picked = pickModel(deps.models, deps.defaultModel);
     const provider = deps.models.get(picked.id).provider;
     const planned = await plan(provider, picked.id, parsed.data.goal);
     const childIds: string[] = [];
@@ -113,7 +113,7 @@ export function agentVerifyHandler(deps: AgentDeps): TaskHandler {
         code: "VERIFY_EARLY",
       });
     }
-    const picked = pickModel(deps);
+    const picked = pickModel(deps.models, deps.defaultModel);
     const provider = deps.models.get(picked.id).provider;
     const verdict = await verify(provider, picked.id, parsed.data.goal, target.output);
     // Episodic memory: what happened and whether it worked — the raw material

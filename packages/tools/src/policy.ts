@@ -66,3 +66,18 @@ export function riskOf(tool: string): RiskLevel {
   if (tool === "filesystem.write") return "Medium";
   return "High";
 }
+
+// Every permission string the system understands. The builder's security
+// review rejects manifests asking for anything outside this list.
+export const KNOWN_PERMISSIONS = [
+  "fs.read",
+  "fs.write",
+  "fs.delete",
+  "web.fetch",
+  "shell.execute",
+  "git.read",
+  "finance.read",
+  "finance.write",
+  "jobs.read",
+  "jobs.write",
+];
