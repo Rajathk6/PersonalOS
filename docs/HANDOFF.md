@@ -1,7 +1,13 @@
 # HANDOFF — tomorrow's working memory (updated end of each workday)
 
-## Where we are (2026-10-09 morning)
-- `main` = v0.2 (Phase 1). `develop` = Phase 2 + Phase 3 + Phase 4 merged (PRs #9, #10, #11).
+## TOMORROW (2026-10-11): three-tier execution starts
+- Read docs/TOPOLOGY.md first (user-corrected architecture: user phone UI / middleman relay+queue+light / laptop full store+heavy).
+- Step 1: assess the middleman phone (need from user: Android version, RAM, Termux OK?).
+- Step 2: design the SQLite↔Postgres sync protocol (ownership by id, idempotency dedup, outbox/inbox, conflict rules).
+- Step 3: SERVER_MODE config on laptop (standalone/main/coordinator-only/worker-only).
+- Standing rules still hold: feature branches + PRs, write tests with code, verify per bundle.
+
+## Where we are (2026-10-09 morning)- `main` = v0.2 (Phase 1). `develop` = Phase 2 + Phase 3 + Phase 4 merged (PRs #9, #10, #11).
 - Next release: v0.3 (Phases 2–4) — deliberate PR develop→main + tag, when ready.
 - Next build: **Phase 5** — scheduler + persistent queue depth (recurring/delayed/retries/catch-up semantic, missed-run policy, power-loss simulation). Then Phase 6 memory.
 
