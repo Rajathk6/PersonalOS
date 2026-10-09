@@ -16,6 +16,9 @@
   .refresh { background: #357; color: #fff; width: 100%; }
   .dim { color: #888; font-size: 0.85em; }
   #tokenbox input { width: 70%; padding: 10px; font-size: 1em; }
+  #remform input { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1em; margin-bottom: 8px; background: #222; color: #eee; border: 1px solid #444; border-radius: 8px; }
+  .set { background: #2a7; color: #fff; width: 100%; }
+  #remmsg { min-height: 1.4em; }
 </style>
 </head>
 <body>
@@ -26,6 +29,12 @@
   <button class="approve" onclick="saveToken()">Save</button>
 </div>
 <div class="card"><h2>Status</h2><div id="health" class="dim">loading…</div></div>
+<div class="card"><h2>Remind me</h2><div id="remform">
+  <input id="remtext" type="text" placeholder="e.g. leave for office">
+  <input id="remat" type="datetime-local">
+  <button class="set" onclick="setReminder()">Set reminder</button>
+  <div id="remmsg" class="dim"></div>
+</div></div>
 <div class="card"><h2>Needs your approval <span id="acount"></span></h2><div id="approvals"></div></div>
 <div class="card"><h2>Recent tasks</h2><div id="tasks"></div></div>
 <div class="card"><h2>Money</h2><div id="money" class="dim">loading…</div></div>
@@ -58,8 +67,12 @@ async function load() {
         ).join("");
     const t = await api("/tasks?state=done");
     const q = await api("/tasks?state=queued");
+    const rems = q.tasks
+      .filter(x => x.type === "reminder.send")
+      .map(x => `<div class="row"><span>⏰ ${(x.input && x.input.text) || x.type}</span><span class="dim">${new Date(x.notBefore).toLocaleString()}</span></div>`)
+      .join("");
     document.getElementById("tasks").innerHTML =
-      `<div class="row"><span>queued</span><b>${q.tasks.length}</b></div>` +
+      `<div class="row"><span>queued</span><b>${q.tasks.length}</b></div>` + rems +
       t.tasks.slice(0, 5).map(x => `<div class="row"><span>${x.type}</span><span class="dim">${x.state}</span></div>`).join("");
     const m = await api("/finance/summary");
     document.getElementById("money").textContent = `net ${m.netWorth} · spent ${m.monthSpend}`;
@@ -68,8 +81,29 @@ async function load() {
   }
 }
 async function resolve(id, ok) {
-  await api(`/approvals/${id}/${ok ? "approve" : "deny"}`, { method: "POST", body: JSON.stringify({ by: "phone" }) });
+  try {
+    await api(`/approvals/${id}/${ok ? "approve" : "deny"}`, { method: "POST", body: JSON.stringify({ by: "phone" }) });
+  } catch (e) {
+    document.getElementById("acount").textContent = "(tap failed — hit Refresh)";
+  }
   load();
+}
+async function setReminder() {
+  const msg = document.getElementById("remmsg");
+  try {
+    const text = document.getElementById("remtext").value.trim();
+    const at = document.getElementById("remat").value;
+    if (!text || !at) { msg.textContent = "type a reminder and pick a date + time"; return; }
+    const when = new Date(at);
+    if (isNaN(when.getTime()) || when.getTime() < Date.now()) { msg.textContent = "pick a future time"; return; }
+    const r = await api("/tasks", { method: "POST", body: JSON.stringify({ type: "reminder.send", input: { text }, notBefore: when.toISOString() }) });
+    if (r.error) { msg.textContent = "server said: " + (r.message || r.error); return; }
+    msg.textContent = "set for " + when.toLocaleString();
+    document.getElementById("remtext").value = "";
+    load();
+  } catch (e) {
+    msg.textContent = "could not reach server — hit Refresh";
+  }
 }
 load();
 setInterval(load, 30000);
