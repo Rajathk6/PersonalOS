@@ -5,10 +5,8 @@ High-level goals in, planned multi-step work out: tasks, memory, scheduling, too
 structured personal data, and replaceable models/workers — surviving power cuts and
 1 Mbps internet on ₹0 budget.
 
-> Status: **Prototype complete (all 12+ phases on `develop`): tasks, models, tools, agents,
-> scheduler, memory, capabilities (finance + jobs), multi-node, approvals, phone page,
-> model ecosystem, capability builder, distribution.**
-> Next: deferred test pass + v0.3 release.
+> Status: **v0.3 — full prototype, 71/71 tests green.**
+> Next: real-world use, Pi coordinator, phone wall display.
 > See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the phase plan and
 > [`PROGRESS.md`](PROGRESS.md) for the running log.
 
@@ -51,7 +49,7 @@ Intel i7 11th-gen · 12 GB RAM · Iris iGPU · 1 TB SSD · Linux · no NVIDIA ·
 | Phase | Goal | State |
 |---|---|---|
 | -1–1 | Architecture, skeleton, autonomous core + kill-9 gate | ✅ released (v0.2) |
-| 2–12 | Model, tools, planner, scheduler, memory, capabilities, multi-node, phone, model eco, builder, distribution | ✅ built on `develop`, v0.3 pending |
+| 2–12 | Model, tools, planner, scheduler, memory, capabilities, multi-node, phone, model eco, builder, distribution | ✅ released (v0.3, 71/71 green) |
 
 ## Quickstart
 
