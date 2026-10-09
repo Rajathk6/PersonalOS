@@ -26,7 +26,7 @@ const EnvSchema = z.object({
   // Pi coordinator or cloud provider needs no code change to take over.
   OLLAMA_URL: z.string().url().default("http://127.0.0.1:11434"),
   DEFAULT_MODEL: z.string().min(1).default("qwen2.5:3b"),
-  MODEL_TIMEOUT_MS: z.coerce.number().int().positive().default(300000),
+  MODEL_TIMEOUT_MS: z.coerce.number().int().positive().default(600000),
   // Cloud fallback (Phase 10): unset = no cloud provider registered, no spend.
   OPENROUTER_API_KEY: z.string().default(""),
   OPENROUTER_URL: z.string().url().default("https://openrouter.ai/api/v1"),

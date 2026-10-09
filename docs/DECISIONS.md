@@ -187,3 +187,9 @@ Context: New models must arrive without code changes or surprise switches.
 Decision: (1) Boot discovers provider-served models; static catalog is fallback-only. Re-discover returns already[] — never blind-replaces. (2) Benchmark = 2 micro-tasks with trivially checkable answers; results persist as evidence; recommend() only orders the menu, DEFAULT_MODEL still picks. (3) OpenRouter registers only with a key set; empty key = no cloud provider, no spend. (4) Estimates (e.g. context length) are labeled in hwReqs, never presented as facts.
 Why: the spec's discovery flow with the sharp edges removed for prototype scale.
 Consequence: bigger benchmarks/cron refresh wait for real multi-model need; benchmark rows accumulate as history.
+
+## 2026-10-09 — Phase 11 builder calls (draft-normalize-review-approve, no codegen)
+Context: 3B drafting is slow (~7 min/attempt) and sloppy ("..." names, invented permissions).
+Decision: (1) LLM drafts manifests only — never code. (2) sanitizeManifest normalizes (drop unknowns, re-slug bad names, pin runtime) and REPORTS every change as a review warning. (3) Review stays deterministic and blocking on errors; approval installs design-only bundles (empty handlers/tools) — working code is still written by humans. (4) MODEL_TIMEOUT default 600000 for CPU reality; draft maxTokens 250.
+Why: the first live draft was correctly REJECTED (unknown permissions); the second passed only after normalization — the governance works, the model is just weak.
+Consequence: codegen stays out until a capable model exists; proposals table holds the audit trail of both outcomes.

@@ -1,5 +1,5 @@
 export { DefaultPermissionEngine } from "./engine.js";
-export { decidePolicy, isDestructiveCommand, riskOf } from "./policy.js";
+export { decidePolicy, isDestructiveCommand, riskOf, KNOWN_PERMISSIONS } from "./policy.js";
 export type { PolicyRule } from "./policy.js";
 export { ToolRegistry } from "./tool-registry.js";
 export { ToolExecutor } from "./executor.js";

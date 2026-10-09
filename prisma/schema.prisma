@@ -238,3 +238,19 @@ model ModelBenchmark {
   @@index([modelId, ranAt(sort: Desc)], name: "model_benchmarks_model_time")
   @@map("model_benchmarks")
 }
+
+// Capability proposals (Phase 11): natural-language domain descriptions
+// turned into reviewed manifest designs. A proposal is a DESIGN ARTIFACT —
+// working handlers/tools code still gets written by a human (or a future
+// codegen phase); approval registers the design, not imaginary code.
+model CapabilityProposal {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  description String
+  manifest    Json     @db.JsonB
+  review      Json     @default("{}") @db.JsonB
+  status      String   @default("proposed")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("capability_proposals")
+}
