@@ -200,6 +200,12 @@ Decision: (1) setup.sh is BOTH install and update (idempotent re-run; proven liv
 Why: boring technology for the boring-but-critical layer; the interesting code stays in the platform.
 Consequence: all 12 phases built — prototype complete on develop; v0.3 + deferred test pass is the next milestone.
 
+## 2026-10-10 — Three-tier topology: user phone / middleman / laptop (user correction)
+Context: User pointed out the goal was always isolation + a middleman relay, and that building without it was flawed logic. Correct.
+Decision: (1) User phone = UI only, own network, never touches laptop directly. (2) Middleman (old phone) = always-up relay: owns queue + worker registry + relay, runs light tasks, delegates heavy to laptop if on. (3) Laptop = main server (full Postgres truth + heavy compute), posture configurable via env (standalone/main/coordinator-only/worker-only). Recorded in docs/TOPOLOGY.md, which overrules the old phone-as-display note.
+Why: isolation was the goal; reachability tools (Tailscale) are plumbing, not architecture. The distribution mechanism (tokens, leases, idempotency, capability matching) already supports a new node shape — no rewrite.
+Consequence: execution starts tomorrow with (a) middleman device assessment, (b) SQLite↔Postgres sync protocol design, (c) SERVER_MODE config on laptop. Prior Tailscale-only guidance demoted to plumbing option.
+
 ## 2026-10-09 — Test pass v0.3: 3 real bugs from 71 tests (write-first works)
 Context: First full run of everything written since Phase 5: 68/71.
 Decision: fix all three: (1) /health lost its `worker` key in a later edit — restored (a dashboard consumer would have broken silently). (2) Capability test regex didn't match the code's actual error text — aligned to the contract message. (3) Scheduler fake re-filtered once at setup — findMany mock now filters per call like Postgres.
