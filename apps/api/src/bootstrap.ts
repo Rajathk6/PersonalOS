@@ -15,6 +15,13 @@ import {
   financeRouter,
   financeTools,
 } from "@personalos/finance";
+import {
+  JobsStore,
+  jobsHandlers,
+  jobsManifest,
+  jobsRouter,
+  jobsTools,
+} from "@personalos/jobs";
 import { Scheduler } from "@personalos/scheduler";
 import {
   DefaultPermissionEngine,
@@ -120,6 +127,9 @@ export async function bootstrap(
   const financeStore = new FinanceStore(prisma);
   const financeToolList = financeTools(financeStore);
   for (const tool of financeToolList) toolRegistry.register(tool);
+  const jobsStore = new JobsStore(prisma);
+  const jobsToolList = jobsTools(jobsStore, toolExecutor);
+  for (const tool of jobsToolList) toolRegistry.register(tool);
   const capabilities = new CapabilityRegistry(async (manifest, enabled) => {
     const doc = JSON.parse(JSON.stringify(manifest)) as Prisma.InputJsonValue;
     await prisma.installedCapability.upsert({
@@ -133,13 +143,22 @@ export async function bootstrap(
     handlers: financeHandlers(toolExecutor),
     tools: financeToolList,
   });
+  await capabilities.install({
+    manifest: jobsManifest,
+    handlers: jobsHandlers({ store, queue, executor: toolExecutor, jobs: jobsStore }),
+    tools: jobsToolList,
+  });
   logger.info({ capabilities: capabilities.list().map((m) => `${m.name}@${m.version}`) }, "capabilities installed");
 
   let host: WorkerHost | null = null;
   let scheduler: Scheduler | null = null;
   const memory = new MemoryStore(prisma);
   const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel, memory };
-  const allHandlers = new Map([...defaultHandlers(handlerDeps), ...financeHandlers(toolExecutor)]);
+  const allHandlers = new Map([
+    ...defaultHandlers(handlerDeps),
+    ...financeHandlers(toolExecutor),
+    ...jobsHandlers({ store, queue, executor: toolExecutor, jobs: jobsStore }),
+  ]);
   if (opts.workerEnabled) {
     host = new WorkerHost(prisma, queue, {
       workerId: opts.workerId,
@@ -177,6 +196,7 @@ export async function bootstrap(
     schedules: scheduleRouter(prisma),
     memory: memoryRouter(memory),
     finance: financeRouter(financeStore, toolExecutor),
+    jobs: jobsRouter(jobsStore, queue),
   });
 
   let server: Server | null = null;

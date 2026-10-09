@@ -163,3 +163,9 @@ Context: First vertical had to prove Core stays generic while money stays exact.
 Decision: (1) Every vertical enters via CapabilityRegistry.install (manifest schema + runtime compat + lifecycle walk + DB record); dynamic plugin loading waits for Phase 11. (2) Money in integer paise, sums in SQL/JS ints, formatted only for display — LLM never computes. (3) npm package version stays 0.0.0 for all workspaces; capability version lives in the manifest (finance@1.0.0) — mixing them broke npm install. (4) Task types are shells over executor tools; routes go through the executor too — no path bypasses permission+audit.
 Why: the chicken-tikka test (10000−235−99=9666 exactly) must hold forever, and Core must never learn what finance is.
 Consequence: 7B jobs monitor follows the same door; budgets/loans arrive as finance v1.x, never Core edits.
+
+## 2026-10-09 — Phase 7B jobs calls (deterministic discovery, notify-after-queue)
+Context: Job monitoring had to work without depending on weak 3B output.
+Decision: (1) Discovery = fetch via web.fetch tool (caps/audit apply) + literal keyword match + (watch,url,title) dedup — no model in the loop. (2) Handler notifies per fresh finding via reminder task, marks notified only after enqueue (crash keeps it un-notified → next check re-notifies). (3) Eligibility/exam analysis stays future work on top of stored findings (official facts vs inference separated from day one).
+Why: a missed alert is worse than a plain one; determinism first, smarts later.
+Consequence: scheduler can drive jobs.check_now on interval for autonomous monitoring.

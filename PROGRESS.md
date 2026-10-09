@@ -96,6 +96,11 @@
 - Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE chicken-tikka test: account + ₹100 income + ₹2.35 expense (API) + 99p expense (worker task path) → summary exactly 9666 net / 334 spend. Finance install persists in installed_capabilities; demo money cleaned; server stopped.
 - Next: Phase 7B — jobs monitor vertical (watches + deterministic keyword findings + match notifications).
 
+## 2026-10-09 — Phase 7B merged (PR #15 → develop) — PHASE 7 COMPLETE
+- Scope: @personalos/jobs 0.1.0 (manifest, pure match/title fns, store with dedup, jobs.check tool via executor+web.fetch, check-then-notify handler, /jobs router) + policy jobs.check Allowed + bootstrap install + worker merge. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: watch created → check_now found "Engineering - Wikipedia" [engineer] → reminder delivered → notified=true; second check → still 1 finding (no dup, no re-notify). Demo rows cleaned; installed_capabilities keeps finance@1.0.0 + jobs@0.1.0; server stopped.
+- Next: Phase 8 — multi-node runtime (worker registry, heartbeats, Pi coordinator prep) — or v0.3 release first; user's call.
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)

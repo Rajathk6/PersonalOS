@@ -170,3 +170,36 @@ model Transaction {
   @@index([accountId, occurredAt], name: "transactions_account_time")
   @@map("transactions")
 }
+
+// Jobs vertical (Phase 7B): watches + findings. Matching is deterministic
+// keyword search — the LLM may later summarize a finding, but discovery
+// itself never depends on model output (official facts vs inference).
+model JobWatch {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  keywords      String[]  @default([])
+  sources       String[]  @default([])
+  enabled       Boolean   @default(true)
+  lastCheckedAt DateTime? @map("last_checked_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  findings JobFinding[]
+
+  @@unique([name])
+  @@map("job_watches")
+}
+
+model JobFinding {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  watchId         String   @map("watch_id") @db.Uuid
+  watch           JobWatch @relation(fields: [watchId], references: [id], onDelete: Cascade)
+  sourceUrl       String   @map("source_url")
+  title           String
+  snippet         String?
+  matchedKeywords String[] @default([]) @map("matched_keywords")
+  notified        Boolean  @default(false)
+  foundAt         DateTime @default(now()) @map("found_at") @db.Timestamptz(6)
+
+  @@unique([watchId, sourceUrl, title])
+  @@map("job_findings")
+}
