@@ -29,6 +29,10 @@ const EnvSchema = z.object({
   MODEL_TIMEOUT_MS: z.coerce.number().int().positive().default(300000),
   // Tool sandbox root (Phase 3): filesystem tools cannot escape this dir.
   WORKSPACE_DIR: z.string().min(1).default("workspace"),
+  // Scheduler (Phase 5): time/event trigger owner. Same enum-bool pattern as
+  // WORKER_ENABLED (Boolean("false") is true, so explicit words only).
+  SCHEDULER_ENABLED: z.enum(["true", "false"]).default("true").transform((v) => v === "true"),
+  SCHEDULER_POLL_MS: z.coerce.number().int().positive().default(5000),
   NODE_ENV: z.string().default("development"),
 });
 
@@ -46,6 +50,8 @@ export interface Config {
   defaultModel: string;
   modelTimeoutMs: number;
   workspaceDir: string;
+  schedulerEnabled: boolean;
+  schedulerPollMs: number;
   nodeEnv: string;
   isProduction: boolean;
 }
@@ -72,6 +78,8 @@ function loadConfig(): Config {
     defaultModel: env.DEFAULT_MODEL,
     modelTimeoutMs: env.MODEL_TIMEOUT_MS,
     workspaceDir: env.WORKSPACE_DIR,
+    schedulerEnabled: env.SCHEDULER_ENABLED,
+    schedulerPollMs: env.SCHEDULER_POLL_MS,
     nodeEnv: env.NODE_ENV,
     isProduction: env.NODE_ENV === "production",
   };

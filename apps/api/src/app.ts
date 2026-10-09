@@ -13,9 +13,11 @@ export interface AppDeps {
   store: TaskRepository;
   queue: PgQueue;
   workerStatus: () => "enabled" | "disabled";
+  schedulerStatus: () => "ready" | "disabled";
   modelIds: () => string[];
   tools: () => { name: string; version: string; description: string; risk: string }[];
   agent: Router;
+  schedules: Router;
 }
 
 // App factory (not a singleton): production and tests each build their own
@@ -40,6 +42,7 @@ export function createApp(deps: AppDeps): Express {
           queue: "ready",
           scheduler: "not-wired",
           worker: deps.workerStatus(),
+          scheduler: deps.schedulerStatus(),
           models: deps.modelIds(),
           version,
         });
@@ -51,6 +54,7 @@ export function createApp(deps: AppDeps): Express {
 
   app.use("/tasks", taskRouter(deps.store, deps.queue));
   app.use("/agent", deps.agent);
+  app.use("/schedules", deps.schedules);
 
   // Visibility only: which tools exist and their risk. Execution stays behind
   // the executor (Phase 4); there is deliberately no POST /tools/:name yet.

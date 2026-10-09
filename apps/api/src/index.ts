@@ -18,6 +18,8 @@ async function main(): Promise<void> {
     ollamaUrl: config.ollamaUrl,
     modelTimeoutMs: config.modelTimeoutMs,
     defaultModel: config.defaultModel,
+    schedulerEnabled: config.schedulerEnabled,
+    schedulerPollMs: config.schedulerPollMs,
     workspaceDir: config.workspaceDir,
   });
 

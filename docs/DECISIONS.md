@@ -145,3 +145,9 @@ Context: 3B on CPU is slow and a weak narrator; requests must stay fast.
 Decision: (1) Planner/verifier prompts are minimal with JSON-only instruction + extract-first-{...} + exactly 1 retry. (2) /agent/run and /agent/verify only enqueue — all LLM work happens in worker handlers. (3) agent.verify on a non-done target fails retryable (VERIFY_EARLY); proper dependency-wait arrives Phase 5. (4) Router default: configured DEFAULT_MODEL wins ties after hint filtering.
 Why: 195s planner + 180s verifier calls would destroy request latency; retries are bounded so a confused model fails loudly instead of looping.
 Consequence: Phase 5 scheduler owns delayed/dependent execution; planner SYSTEM prompt must be updated as new task types land.
+
+## 2026-10-09 — Phase 5 scheduler calls (no cron, one covering run, poison disables)
+Context: Recurring work + outage catch-up without replay storms or new dependencies.
+Decision: (1) Schedule shapes = once{at} + every{seconds≥15, from?} only — no cron parser until a real calendar need appears. (2) Outage → ONE task with _catchup{missedPeriods}, checkpoint jumps to now. (3) Invalid schedule rows disable themselves + report via onError instead of spinning. (4) Scheduler + worker share the process behind flags until the Phase 8 split; both touch work only through the queue.
+Why: smallest mechanism that honors ADR-010; cron is a dependency plus a bug farm.
+Consequence: /schedules manages jobs; VERIFY_EARLY still burns retries until dependency-wait lands (carried open thread).
