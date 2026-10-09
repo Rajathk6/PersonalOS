@@ -5,6 +5,7 @@ import type { PgQueue, TaskHandler, TaskRepository } from "@personalos/core";
 import type { ModelProvider } from "@personalos/contracts";
 import type { ModelRegistry } from "@personalos/models";
 import { route } from "@personalos/models";
+import type { MemoryStore } from "@personalos/memory";
 import { plan, verify } from "@personalos/agents";
 
 export interface AgentDeps {
@@ -12,6 +13,7 @@ export interface AgentDeps {
   queue: PgQueue;
   models: ModelRegistry;
   defaultModel: string;
+  memory: MemoryStore;
 }
 
 const RunBodySchema = z.object({ goal: z.string().min(1).max(2000) });
@@ -83,6 +85,15 @@ export function agentRunHandler(deps: AgentDeps): TaskHandler {
       });
       childIds.push(created.id);
     }
+    // Task memory: the plan outlives the run, so a future planner (or the
+    // user asking "what did you do?") can retrieve it without LLM archaeology.
+    await deps.memory.remember({
+      kind: "task",
+      key: `agentrun-${task.id}`,
+      content: { goal: parsed.data.goal, model: picked.id, childIds },
+      importance: 0.6,
+      sourceTaskId: task.id,
+    });
     return { goal: parsed.data.goal, model: picked.id, planned: planned.tasks.length, childIds };
   };
 }
@@ -105,6 +116,14 @@ export function agentVerifyHandler(deps: AgentDeps): TaskHandler {
     const picked = pickModel(deps);
     const provider = deps.models.get(picked.id).provider;
     const verdict = await verify(provider, picked.id, parsed.data.goal, target.output);
+    // Episodic memory: what happened and whether it worked — the raw material
+    // for adaptation (Phase 11+) instead of repeated mistakes.
+    await deps.memory.remember({
+      kind: "episodic",
+      content: { goal: parsed.data.goal, taskId: target.id, ok: verdict.ok, reason: verdict.reason },
+      importance: verdict.ok ? 0.4 : 0.8,
+      sourceTaskId: task.id,
+    });
     return { taskId: target.id, model: picked.id, ...verdict };
   };
 }

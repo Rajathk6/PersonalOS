@@ -151,3 +151,9 @@ Context: Recurring work + outage catch-up without replay storms or new dependenc
 Decision: (1) Schedule shapes = once{at} + every{seconds≥15, from?} only — no cron parser until a real calendar need appears. (2) Outage → ONE task with _catchup{missedPeriods}, checkpoint jumps to now. (3) Invalid schedule rows disable themselves + report via onError instead of spinning. (4) Scheduler + worker share the process behind flags until the Phase 8 split; both touch work only through the queue.
 Why: smallest mechanism that honors ADR-010; cron is a dependency plus a bug farm.
 Consequence: /schedules manages jobs; VERIFY_EARLY still burns retries until dependency-wait lands (carried open thread).
+
+## 2026-10-09 — Phase 6 memory calls (one table, upserts, no vectors yet)
+Context: Six memory kinds needed persistence without turning into a dump or a vector-science project.
+Decision: (1) Single memories table (kind/key/content/importance/confidence/source/expires); keyed kinds upsert on (kind,key), unkeyed append. (2) Recall = keyword + importance floor + expiry filter, ranked importance/freshness; no pgvector until semantic search earns it. (3) Agent handlers write task-memory (plan record) + episodic-memory (verdicts) automatically — memory goes live through use, not a separate UI. (4) Structured money/facts stay relational (Phase 7); memory never holds the books.
+Why: cheapest durable design that honors "don't vectorize everything" and "structured stays structured".
+Consequence: recall SQL is the seam where vector ranking plugs in later; callers unchanged.

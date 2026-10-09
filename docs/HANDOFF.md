@@ -30,6 +30,7 @@ npm run dev -w @personalos/api    # API + worker on :3000
 - Subagents: one returned empty on 0C — verify their files exist before trusting completion.
 - `.env` is local-only; `.env.example` is the contract. System Postgres owns 5432; ours is on 5433 (PG_PORT).
 - pkill patterns can match the tool's own shell — use the `[t]sx` bracket trick, and prefer `ss -ltnp` to find real PIDs.
+- NEVER trust `cmd | tail` for pass/fail: pipes mask exit codes. Redirect to a file, then `echo EXIT:$?`.
 
 ## Open threads (not blockers)
 - num_predict cap didn't visibly shorten output — verify later, not urgent.
