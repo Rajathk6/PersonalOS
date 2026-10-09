@@ -31,6 +31,8 @@ npm run dev -w @personalos/api    # API + worker on :3000
 - `.env` is local-only; `.env.example` is the contract. System Postgres owns 5432; ours is on 5433 (PG_PORT).
 - pkill patterns can match the tool's own shell — use the `[t]sx` bracket trick, and prefer `ss -ltnp` to find real PIDs.
 - NEVER trust `cmd | tail` for pass/fail: pipes mask exit codes. Redirect to a file, then `echo EXIT:$?`.
+- Cross-package "no exported member" right after adding an export: rerun typecheck (single-run build ordering can compile api against stale core dist).
+- Killing dev servers: `tsx watch` node children ORPHAN when npm parents die, and api+worker share the same `tsx watch src/index.ts` cmdline. Never trust wrapper kills — list PIDs via `ps`, kill node PIDs explicitly, verify with `ss -ltn` + a second `ps`.
 
 ## Open threads (not blockers)
 - num_predict cap didn't visibly shorten output — verify later, not urgent.

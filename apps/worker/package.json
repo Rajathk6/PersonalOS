@@ -1,0 +1,27 @@
+{
+  "name": "@personalos/worker",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@personalos/contracts": "0.0.0",
+    "@personalos/core": "0.0.0",
+    "@personalos/finance": "0.0.0",
+    "@personalos/jobs": "0.0.0",
+    "@personalos/tools": "0.0.0",
+    "@prisma/client": "^6.19.3",
+    "dotenv": "^16.4.5",
+    "pino": "^9.4.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  }
+}

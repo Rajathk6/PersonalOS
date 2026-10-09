@@ -169,3 +169,9 @@ Context: Job monitoring had to work without depending on weak 3B output.
 Decision: (1) Discovery = fetch via web.fetch tool (caps/audit apply) + literal keyword match + (watch,url,title) dedup — no model in the loop. (2) Handler notifies per fresh finding via reminder task, marks notified only after enqueue (crash keeps it un-notified → next check re-notifies). (3) Eligibility/exam analysis stays future work on top of stored findings (official facts vs inference separated from day one).
 Why: a missed alert is worse than a plain one; determinism first, smarts later.
 Consequence: scheduler can drive jobs.check_now on interval for autonomous monitoring.
+
+## 2026-10-09 — Phase 8 multinode calls (shared-DB topology, fail-closed tokens, sweep requeues)
+Context: No second machine yet — prove distribution with processes, not promises.
+Decision: (1) Topology = shared Postgres (Pi+laptop both reach it later); HTTP claim/complete/fail exists for DB-less workers, token-gated, lease-holder-checked (403/409). (2) WORKER_TOKENS empty = HTTP worker endpoints refuse everyone (fail closed). (3) Liveness sweep flips silent workers offline AND requeues their running tasks with WORKER_LOST + retry accounting (not just lease expiry — avoids poison-task spin). (4) apps/worker wires deterministic handlers only; agent/LLM handlers stay API-local until model topology is proven. (5) Heartbeats are the only liveness signal; one TCP success is not liveness.
+Why: distribution without shared assumptions; a dead worker's work moves in seconds, not at lease expiry.
+Consequence: Wake-on-LAN stays out (optional, hardware-dependent); HTTP worker path needs its own gate test when a DB-less worker exists.

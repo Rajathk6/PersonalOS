@@ -59,7 +59,6 @@ export class WorkerHost {
       data: { lastHeartbeat: new Date(), status: "online" },
     }).catch(() => undefined);
   }
-
   // Overlap guard: a slow handler must delay the next poll, never run twice.
   private async tick(): Promise<void> {
     if (this.stopped || this.ticking) return;

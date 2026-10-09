@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
-    "apps/api",
+    "apps/*",
     "packages/*"
   ],
   "engines": {
@@ -12,6 +12,7 @@
   },
   "scripts": {
     "dev": "npm run dev -w @personalos/api",
+    "dev:worker": "npm run dev -w @personalos/worker",
     "build": "npm run build --workspaces --if-present",
     "pretypecheck": "npm run build --workspaces --if-present",
     "typecheck": "tsc --noEmit",
