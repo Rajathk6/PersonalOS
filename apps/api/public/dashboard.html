@@ -69,7 +69,8 @@ async function load() {
     const q = await api("/tasks?state=queued");
     const rems = q.tasks
       .filter(x => x.type === "reminder.send")
-      .map(x => `<div class="row"><span>⏰ ${(x.input && x.input.text) || x.type}</span><span class="dim">${new Date(x.notBefore).toLocaleString()}</span></div>`)
+      .map(x => `<div class="row"><span>⏰ ${(x.input && x.input.text) || x.type}<br><span class="dim">${new Date(x.notBefore).toLocaleString()}</span></span>
+        <span><button class="deny" onclick="cancelReminder('${x.id}')">✕</button></span></div>`)
       .join("");
     document.getElementById("tasks").innerHTML =
       `<div class="row"><span>queued</span><b>${q.tasks.length}</b></div>` + rems +
@@ -85,6 +86,14 @@ async function resolve(id, ok) {
     await api(`/approvals/${id}/${ok ? "approve" : "deny"}`, { method: "POST", body: JSON.stringify({ by: "phone" }) });
   } catch (e) {
     document.getElementById("acount").textContent = "(tap failed — hit Refresh)";
+  }
+  load();
+}
+async function cancelReminder(id) {
+  try {
+    await api(`/tasks/${id}/cancel`, { method: "POST", body: "{}" });
+  } catch (e) {
+    // fall through to reload — the list shows the truth either way
   }
   load();
 }
