@@ -35,7 +35,7 @@ npm run dev -w @personalos/api    # API + worker on :3000
 - Killing dev servers: `tsx watch` node children ORPHAN when npm parents die, and api+worker share the same `tsx watch src/index.ts` cmdline. Never trust wrapper kills — list PIDs via `ps`, kill node PIDs explicitly, verify with `ss -ltn` + a second `ps`.
 
 ## Open threads (not blockers)
-- BUG (found 2026-10-10, live with user): dashboard approve button works server-side but the page doesn't refresh the list after tapping Yes/No — user must hit Refresh manually. Fix in apps/api/public/dashboard.html resolve() (re-render from the approve response / re-call load() on failure too).
+- BUG (found 2026-10-10, live with user): dashboard approve button worked server-side but the page didn't refresh — FIXED same day (resolve() now try/catches and always reloads; reminder form added in same batch).
 - num_predict cap didn't visibly shorten output — verify later, not urgent.
 - VERIFY_EARLY burns retry budget on immediate re-poll; Phase 5 replaces with wait-for-dependency.
 - Planner only knows reminder.send; new task types get advertised in the SYSTEM prompt as they land.
