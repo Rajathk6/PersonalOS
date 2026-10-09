@@ -7,6 +7,14 @@ import path from "node:path";
 import { PgQueue, TaskRepository, WorkerHost, recoverOnBoot } from "@personalos/core";
 import { ModelRegistry, OllamaProvider, qwen25_3b } from "@personalos/models";
 import { MemoryStore } from "@personalos/memory";
+import { CapabilityRegistry } from "@personalos/capabilities";
+import {
+  FinanceStore,
+  financeHandlers,
+  financeManifest,
+  financeRouter,
+  financeTools,
+} from "@personalos/finance";
 import { Scheduler } from "@personalos/scheduler";
 import {
   DefaultPermissionEngine,
@@ -106,17 +114,39 @@ export async function bootstrap(
   });
   logger.info({ tools: toolRegistry.list().map((t) => t.name) }, "tools registered");
 
+  // First vertical through the capability door: manifest validated, install
+  // recorded, handlers/tools/router attached. Core files above this line never
+  // mention finance — that is the whole point being proven.
+  const financeStore = new FinanceStore(prisma);
+  const financeToolList = financeTools(financeStore);
+  for (const tool of financeToolList) toolRegistry.register(tool);
+  const capabilities = new CapabilityRegistry(async (manifest, enabled) => {
+    const doc = JSON.parse(JSON.stringify(manifest)) as Prisma.InputJsonValue;
+    await prisma.installedCapability.upsert({
+      where: { name: manifest.name },
+      create: { name: manifest.name, version: manifest.version, manifest: doc, enabled },
+      update: { version: manifest.version, manifest: doc, enabled },
+    });
+  });
+  await capabilities.install({
+    manifest: financeManifest,
+    handlers: financeHandlers(toolExecutor),
+    tools: financeToolList,
+  });
+  logger.info({ capabilities: capabilities.list().map((m) => `${m.name}@${m.version}`) }, "capabilities installed");
+
   let host: WorkerHost | null = null;
   let scheduler: Scheduler | null = null;
   const memory = new MemoryStore(prisma);
   const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel, memory };
+  const allHandlers = new Map([...defaultHandlers(handlerDeps), ...financeHandlers(toolExecutor)]);
   if (opts.workerEnabled) {
     host = new WorkerHost(prisma, queue, {
       workerId: opts.workerId,
       capabilities: opts.capabilities,
       pollMs: opts.pollMs,
       heartbeatSeconds: opts.heartbeatSeconds,
-      handlers: defaultHandlers(handlerDeps),
+      handlers: allHandlers,
       onTaskError: (err, taskId) => logger.error({ err, taskId }, "worker task error"),
     });
     await host.start();
@@ -146,6 +176,7 @@ export async function bootstrap(
     agent: agentRouter(handlerDeps),
     schedules: scheduleRouter(prisma),
     memory: memoryRouter(memory),
+    finance: financeRouter(financeStore, toolExecutor),
   });
 
   let server: Server | null = null;

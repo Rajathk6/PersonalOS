@@ -124,3 +124,49 @@ model Memory {
   @@index([kind, importance(sort: Desc), updatedAt(sort: Desc)], name: "memories_recall")
   @@map("memories")
 }
+
+// Capability installs (Phase 7): which manifests are installed + enabled.
+// Code still ships with the release (dynamic plugin loading is Phase 11);
+// this table is the source of truth for what is ACTIVE, so disabling needs
+// no redeploy.
+model InstalledCapability {
+  name      String   @id
+  version   String
+  manifest  Json     @db.JsonB
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("installed_capabilities")
+}
+
+// Finance vertical (Phase 7A): money in minor units (paise), never floats.
+// Deterministic sums only — the LLM explains, never computes.
+model Account {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  type      String   @default("cash")
+  currency  String   @default("INR")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  transactions Transaction[]
+
+  @@unique([name])
+  @@map("accounts")
+}
+
+model Transaction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  kind        String
+  amountPaise Int      @map("amount_paise")
+  currency    String   @default("INR")
+  category    String?
+  note        String?
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([accountId, occurredAt], name: "transactions_account_time")
+  @@map("transactions")
+}

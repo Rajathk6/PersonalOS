@@ -19,6 +19,7 @@ export interface AppDeps {
   agent: Router;
   schedules: Router;
   memory: Router;
+  finance: Router;
 }
 
 // App factory (not a singleton): production and tests each build their own
@@ -55,6 +56,7 @@ export function createApp(deps: AppDeps): Express {
   app.use("/agent", deps.agent);
   app.use("/schedules", deps.schedules);
   app.use("/memory", deps.memory);
+  app.use("/finance", deps.finance);
 
   // Visibility only: which tools exist and their risk. Execution stays behind
   // the executor (Phase 4); there is deliberately no POST /tools/:name yet.

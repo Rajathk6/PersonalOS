@@ -91,6 +91,11 @@
 - Demo rows cleaned; dev DB 0 tasks + 0 memories; server stopped.
 - Next: Phase 7 — capability system + first real verticals (finance + jobs monitor as capabilities).
 
+## 2026-10-09 — Phase 7A merged (PR #14 → develop)
+- Scope: @personalos/capabilities (registry, lifecycle walk, compat gate, DB record) + @personalos/finance (manifest 1.0.0, paise-integer store, 3 tools, 2 task handlers, /finance router) + policy finance.* Allowed + bootstrap install + worker merge. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE chicken-tikka test: account + ₹100 income + ₹2.35 expense (API) + 99p expense (worker task path) → summary exactly 9666 net / 334 spend. Finance install persists in installed_capabilities; demo money cleaned; server stopped.
+- Next: Phase 7B — jobs monitor vertical (watches + deterministic keyword findings + match notifications).
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)
