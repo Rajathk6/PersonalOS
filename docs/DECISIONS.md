@@ -181,3 +181,9 @@ Context: Confirm verdicts used to die in response bodies; the phone needed somet
 Decision: (1) Confirm parks to approvals table and returns 202 + approvalId; approve runs the tool and records outcome, deny runs nothing. (2) Double approval → 409 ALREADY_RESOLVED, never a second execution. (3) Phone = one static dashboard.html (status, approvals with Yes/No, tasks, money), token in localStorage; no app build, no framework. (4) POST /tools/:name/run is the user's front door to the executor (same gate as workers).
 Why: approvals must survive restarts and fat fingers; a web page beats a native app for a wall display.
 Consequence: push notifications wait for a provider (documented gap); dashboard polls every 30s.
+
+## 2026-10-09 — Phase 10 ecosystem calls (discover-don't-replace, benchmark advises, cloud gated)
+Context: New models must arrive without code changes or surprise switches.
+Decision: (1) Boot discovers provider-served models; static catalog is fallback-only. Re-discover returns already[] — never blind-replaces. (2) Benchmark = 2 micro-tasks with trivially checkable answers; results persist as evidence; recommend() only orders the menu, DEFAULT_MODEL still picks. (3) OpenRouter registers only with a key set; empty key = no cloud provider, no spend. (4) Estimates (e.g. context length) are labeled in hwReqs, never presented as facts.
+Why: the spec's discovery flow with the sharp edges removed for prototype scale.
+Consequence: bigger benchmarks/cron refresh wait for real multi-model need; benchmark rows accumulate as history.

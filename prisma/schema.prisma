@@ -223,3 +223,18 @@ model Approval {
   @@index([status, createdAt], name: "approvals_pending")
   @@map("approvals")
 }
+
+// Model benchmarks (Phase 10): evidence for recommendations, never a trigger
+// for automatic switches. One row per (model, task, run) — history shows
+// whether a model got better or worse across versions.
+model ModelBenchmark {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  modelId   String   @map("model_id")
+  task      String
+  ok        Boolean
+  latencyMs Int      @map("latency_ms")
+  ranAt     DateTime @default(now()) @map("ran_at") @db.Timestamptz(6)
+
+  @@index([modelId, ranAt(sort: Desc)], name: "model_benchmarks_model_time")
+  @@map("model_benchmarks")
+}

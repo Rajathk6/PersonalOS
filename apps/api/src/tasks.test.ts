@@ -43,6 +43,8 @@ describe.skipIf(!TEST_URL)("task routes + worker slice", () => {
       ollamaUrl: "http://127.0.0.1:1",
       modelTimeoutMs: 1000,
       defaultModel: "qwen2.5:3b",
+      openRouterKey: null,
+      openRouterUrl: "https://openrouter.ai/api/v1",
       schedulerEnabled: false,
       schedulerPollMs: 50,
       workerTokens: new Map(),

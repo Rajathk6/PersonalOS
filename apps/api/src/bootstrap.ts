@@ -6,7 +6,14 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { PgQueue, TaskRepository, WorkerHost, recoverOnBoot, sweepOfflineWorkers } from "@personalos/core";
 import { ApprovalStore } from "@personalos/core";
-import { ModelRegistry, OllamaProvider, qwen25_3b } from "@personalos/models";
+import {
+  BenchmarkStore,
+  ModelRegistry,
+  OllamaProvider,
+  OpenRouterProvider,
+  discoverOllama,
+  qwen25_3b,
+} from "@personalos/models";
 import { MemoryStore } from "@personalos/memory";
 import { CapabilityRegistry } from "@personalos/capabilities";
 import {
@@ -37,6 +44,7 @@ import { createApp } from "./app.js";
 import { agentRouter } from "./agent.js";
 import { approvalRouter } from "./approvals.js";
 import { memoryRouter } from "./memory.js";
+import { modelRouter } from "./models.js";
 import { scheduleRouter } from "./schedules.js";
 import { toolRunRouter } from "./tools.js";
 import { workerRouter } from "./workers.js";
@@ -54,6 +62,8 @@ export interface BootstrapOptions {
   ollamaUrl: string;
   modelTimeoutMs: number;
   defaultModel: string;
+  openRouterKey: string | null;
+  openRouterUrl: string;
   schedulerEnabled: boolean;
   schedulerPollMs: number;
   workerTokens: Map<string, string>;
@@ -86,13 +96,24 @@ export async function bootstrap(
   const recovery = await recoverOnBoot(prisma, opts.leaseSeconds);
   logger.info(recovery, "boot recovery complete");
 
-  // Model registry: providers register here, nothing else may construct one
-  // that talks to model servers (ADR-003). No handler uses it yet (Phase 4).
+  // Model registry: providers register here (ADR-003). Agent handlers borrow
+  // models through the router; nothing outside this file constructs providers.
   const models = new ModelRegistry();
-  models.register({
-    metadata: qwen25_3b,
-    provider: new OllamaProvider({ baseUrl: opts.ollamaUrl, timeoutMs: opts.modelTimeoutMs }),
-  });
+  const ollama = new OllamaProvider({ baseUrl: opts.ollamaUrl, timeoutMs: opts.modelTimeoutMs });
+  const openrouter = opts.openRouterKey === null
+    ? null
+    : new OpenRouterProvider({ baseUrl: opts.openRouterUrl, apiKey: opts.openRouterKey, timeoutMs: opts.modelTimeoutMs });
+  // Discovery on boot: register what the providers actually serve. If nothing
+  // answers (Ollama down), fall back to the static catalog entry so the
+  // system still runs — and say so loudly.
+  const discovered = await discoverOllama(opts.ollamaUrl);
+  if (discovered.length === 0) {
+    models.register({ metadata: qwen25_3b, provider: ollama });
+    logger.warn("model discovery found nothing; using static catalog fallback");
+  } else {
+    for (const meta of discovered) models.register({ metadata: meta, provider: ollama });
+  }
+  const benchmarks = new BenchmarkStore(prisma);
   logger.info({ models: models.list().map((m) => m.id) }, "models registered");
 
   // Tool wall: registry + permission engine + gated executor. Nothing else in
@@ -208,6 +229,16 @@ export async function bootstrap(
     workers: workerRouter({ prisma, store, queue, tokens: opts.workerTokens }),
     toolRun: toolRunRouter(toolExecutor),
     approvals: approvalRouter(new ApprovalStore(prisma), toolExecutor),
+    modelsRoute: modelRouter({
+      prisma,
+      models,
+      benchmarks,
+      ollama,
+      openrouter,
+      ollamaUrl: opts.ollamaUrl,
+      openRouterUrl: opts.openRouterUrl,
+      openRouterKey: opts.openRouterKey,
+    }),
   });
 
   // Liveness sweep: dead workers flip offline and their tasks requeue now

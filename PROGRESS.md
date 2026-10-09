@@ -112,6 +112,11 @@
 - Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: shell echo parked 202 → pending listed → approved → executed "hello-from-phone" → double-approve 409; dashboard 200. Demo rows + audit residue cleaned (0/0); server stopped.
 - Next: Phase 10 model ecosystem, 11 capability builder, 12 distribution — or v0.3 release + test pass first.
 
+## 2026-10-09 — Phase 10 merged (PR #18 → develop)
+- Scope: @personalos/models OpenRouter (key-gated), discoverOllama/OpenRouter (estimates labeled), 2-task micro-benchmark + BenchmarkStore, recommend() (orders menu, never switches) + api /models list/discover/benchmark/recommendations + boot discovery with static fallback. Tests WRITTEN, NOT RUN.
+- Evidence: typecheck exit 0 ✅ lint exit 0 ✅ + LIVE: boot discovered qwen2.5:3b with real /api/show metadata (32k ctx, Q4_K_M); re-discover → already; benchmark 2/2 (84s + 24s); recommendations ranked with reasons. Benchmark rows kept as history. Server stopped; ollama serve left running.
+- Next: Phase 11 capability builder, 12 distribution — or v0.3 release + test pass first.
+
 ## 2026-10-08 — v0.2 released to main (Phase 1 milestone)
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)

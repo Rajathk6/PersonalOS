@@ -27,6 +27,9 @@ const EnvSchema = z.object({
   OLLAMA_URL: z.string().url().default("http://127.0.0.1:11434"),
   DEFAULT_MODEL: z.string().min(1).default("qwen2.5:3b"),
   MODEL_TIMEOUT_MS: z.coerce.number().int().positive().default(300000),
+  // Cloud fallback (Phase 10): unset = no cloud provider registered, no spend.
+  OPENROUTER_API_KEY: z.string().default(""),
+  OPENROUTER_URL: z.string().url().default("https://openrouter.ai/api/v1"),
   // Tool sandbox root (Phase 3): filesystem tools cannot escape this dir.
   WORKSPACE_DIR: z.string().min(1).default("workspace"),
   // Scheduler (Phase 5): time/event trigger owner. Same enum-bool pattern as
@@ -57,6 +60,8 @@ export interface Config {
   ollamaUrl: string;
   defaultModel: string;
   modelTimeoutMs: number;
+  openRouterKey: string | null;
+  openRouterUrl: string;
   workspaceDir: string;
   schedulerEnabled: boolean;
   schedulerPollMs: number;
@@ -101,6 +106,8 @@ function loadConfig(): Config {
     ollamaUrl: env.OLLAMA_URL,
     defaultModel: env.DEFAULT_MODEL,
     modelTimeoutMs: env.MODEL_TIMEOUT_MS,
+    openRouterKey: env.OPENROUTER_API_KEY === "" ? null : env.OPENROUTER_API_KEY,
+    openRouterUrl: env.OPENROUTER_URL,
     workspaceDir: env.WORKSPACE_DIR,
     schedulerEnabled: env.SCHEDULER_ENABLED,
     schedulerPollMs: env.SCHEDULER_POLL_MS,
