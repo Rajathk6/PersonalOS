@@ -193,3 +193,9 @@ Context: 3B drafting is slow (~7 min/attempt) and sloppy ("..." names, invented 
 Decision: (1) LLM drafts manifests only — never code. (2) sanitizeManifest normalizes (drop unknowns, re-slug bad names, pin runtime) and REPORTS every change as a review warning. (3) Review stays deterministic and blocking on errors; approval installs design-only bundles (empty handlers/tools) — working code is still written by humans. (4) MODEL_TIMEOUT default 600000 for CPU reality; draft maxTokens 250.
 Why: the first live draft was correctly REJECTED (unknown permissions); the second passed only after normalization — the governance works, the model is just weak.
 Consequence: codegen stays out until a capable model exists; proposals table holds the audit trail of both outcomes.
+
+## 2026-10-09 — Phase 12 distribution calls (idempotent setup, dump discipline, boring services)
+Context: The prototype only matters if it installs, survives reboot, and survives a dead SSD.
+Decision: (1) setup.sh is BOTH install and update (idempotent re-run; proven live). (2) Backups = pg_dump custom format, 14 kept, gitignored, cron-ready; restore drops+recreates (no half-state); round-trip proven (2 caps + 2 benchmarks intact). (3) Autostart = plain systemd user units (Restart=always), no custom daemon. (4) health.sh is the single health word for humans/dashboards/systemd.
+Why: boring technology for the boring-but-critical layer; the interesting code stays in the platform.
+Consequence: all 12 phases built — prototype complete on develop; v0.3 + deferred test pass is the next milestone.

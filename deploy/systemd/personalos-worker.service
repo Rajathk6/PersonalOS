@@ -1,0 +1,15 @@
+[Unit]
+Description=PersonalOS standalone worker
+After=network.target docker.service personalos-api.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Personal/Projects/personalOS
+Environment=DATABASE_URL=postgresql://personalos:personalos@localhost:5433/personalos
+Environment=WORKER_ID=%H-worker
+ExecStart=/usr/bin/npm run dev -w @personalos/worker
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
