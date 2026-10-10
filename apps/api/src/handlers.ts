@@ -39,7 +39,34 @@ export function defaultHandlers(deps: HandlerDeps): Map<string, TaskHandler> {
   const agentDeps = { store: deps.store, queue: deps.queue, models: deps.models, defaultModel: deps.defaultModel, memory: deps.memory };
   return new Map([
     ["reminder.send", reminderSend],
+    ["memory.note", memoryNoteHandler(deps.memory)],
     ["agent.run", agentRunHandler(agentDeps)],
     ["agent.verify", agentVerifyHandler(agentDeps)],
   ]);
+}
+
+// The planner's second verb: "note X down" becomes a stored memory without
+// any LLM in the loop at execution time (the planning call already happened).
+function memoryNoteHandler(memory: HandlerDeps["memory"]): TaskHandler {
+  return async (task: Task): Promise<unknown> => {
+    const parsed = z
+      .object({
+        text: z.string().min(1),
+        kind: z.enum(["user", "episodic", "semantic", "task"]).default("episodic"),
+        key: z.string().min(1).max(200).optional(),
+        importance: z.number().min(0).max(1).default(0.6),
+      })
+      .safeParse(task.input);
+    if (!parsed.success) {
+      throw Object.assign(new Error("memory.note needs { text }"), { code: "NOTE_BAD_INPUT" });
+    }
+    const record = await memory.remember({
+      kind: parsed.data.kind,
+      ...(parsed.data.key !== undefined ? { key: parsed.data.key } : {}),
+      content: { text: parsed.data.text },
+      importance: parsed.data.importance,
+      sourceTaskId: task.id,
+    });
+    return { memoryId: record.id, text: parsed.data.text };
+  };
 }

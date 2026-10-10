@@ -24,8 +24,11 @@ export function extractJson(text: string): string | null {
 }
 
 const SYSTEM = `You turn a personal goal into machine tasks. Reply with ONLY this JSON, no other words:
-{"tasks":[{"type":"reminder.send","input":{"text":"...","at":"...?"}}]}
-Rules: reminder.send needs text (short). "at" is optional ISO datetime. Max 5 tasks. JSON only.`;
+{"tasks":[{"type":"...","input":{...}}]}
+Available types:
+- reminder.send needs {"text":"..."} plus optional "at" ISO datetime (for anything with a time: remind, wake, call, pay by date).
+- memory.note needs {"text":"..."} (for noting things down, remembering facts/preferences; no time involved).
+Rules: pick the type that fits; reminder for timed things, note for timeless ones. Max 5 tasks. JSON only.`;
 
 // Logical role, not a process (spec §4): borrows whatever model the router
 // picked. Prompts stay tiny — 3B models are weak narrators and CPU inference
