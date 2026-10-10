@@ -10,6 +10,13 @@ import { formatINR } from "./store.js";
 export function financeRouter(store: FinanceStore, executor: ToolExecutor): Router {
   const router = Router();
 
+  router.get("/accounts", (_req: Request, res: Response, next: NextFunction): void => {
+    void store
+      .summary()
+      .then((s) => res.json({ accounts: s.accounts.map((a) => a.account) }))
+      .catch(next);
+  });
+
   router.post("/accounts", (req: Request, res: Response, next: NextFunction): void => {
     const parsed = z.object({ name: z.string().min(1), type: z.string().default("cash") }).safeParse(req.body);
     if (!parsed.success) {

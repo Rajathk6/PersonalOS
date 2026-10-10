@@ -16,7 +16,7 @@
   .refresh { background: #357; color: #fff; width: 100%; }
   .dim { color: #888; font-size: 0.85em; }
   #tokenbox input { width: 70%; padding: 10px; font-size: 1em; }
-  #remform input { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1em; margin-bottom: 8px; background: #222; color: #eee; border: 1px solid #444; border-radius: 8px; }
+  .card input, .card select { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1em; margin-bottom: 8px; background: #222; color: #eee; border: 1px solid #444; border-radius: 8px; }
   .set { background: #2a7; color: #fff; width: 100%; }
   #remmsg { min-height: 1.4em; }
 </style>
@@ -29,12 +29,28 @@
   <button class="approve" onclick="saveToken()">Save</button>
 </div>
 <div class="card"><h2>Status</h2><div id="health" class="dim">loading…</div></div>
-<div class="card"><h2>Remind me</h2><div id="remform">
-  <input id="remtext" type="text" placeholder="e.g. leave for office">
+<div class="card"><h2>Remind me</h2><div id="remform">  <input id="remtext" type="text" placeholder="e.g. leave for office">
   <input id="remat" type="datetime-local">
   <button class="set" onclick="setReminder()">Set reminder</button>
   <div id="remmsg" class="dim"></div>
 </div></div>
+<div class="card"><h2>Note it down</h2>
+  <input id="notetext" type="text" placeholder="e.g. wifi password is ...">
+  <button class="set" onclick="saveNote()">Save note</button>
+  <div id="notemsg" class="dim"></div>
+</div>
+<div class="card"><h2>Spent money</h2>
+  <input id="spendamt" type="number" min="1" step="any" placeholder="amount in ₹">
+  <input id="spendnote" type="text" placeholder="what for?">
+  <select id="spendacct"></select>
+  <button class="set" onclick="saveSpend()">Record expense</button>
+  <div id="spendmsg" class="dim"></div>
+</div>
+<div class="card"><h2>Ask it to do something</h2>
+  <input id="goaltext" type="text" placeholder="e.g. remind me to call mom">
+  <button class="set" onclick="askAI()">Do it</button>
+  <div id="goalmsg" class="dim"></div>
+</div>
 <div class="card"><h2>Needs your approval <span id="acount"></span></h2><div id="approvals"></div></div>
 <div class="card"><h2>Recent tasks</h2><div id="tasks"></div></div>
 <div class="card"><h2>Money</h2><div id="money" class="dim">loading…</div></div>
@@ -114,7 +130,71 @@ async function setReminder() {
     msg.textContent = "could not reach server — hit Refresh";
   }
 }
-load();
+async function saveNote() {
+  const msg = document.getElementById("notemsg");
+  try {
+    const text = document.getElementById("notetext").value.trim();
+    if (!text) { msg.textContent = "type something first"; return; }
+    const r = await api("/memory", { method: "POST", body: JSON.stringify({ kind: "episodic", content: { text }, importance: 0.7 }) });
+    if (r.error) { msg.textContent = "server said: " + (r.message || r.error); return; }
+    msg.textContent = "noted ✓";
+    document.getElementById("notetext").value = "";
+  } catch (e) {
+    msg.textContent = "could not reach server — hit Refresh";
+  }
+}
+async function loadAccounts() {
+  try {
+    const r = await api("/finance/accounts");
+    const sel = document.getElementById("spendacct");
+    sel.innerHTML = (r.accounts || []).map(a => `<option>${a}</option>`).join("") || `<option value="">(no accounts yet)</option>`;
+  } catch (e) { /* money card shows the error on submit */ }
+}
+async function saveSpend() {
+  const msg = document.getElementById("spendmsg");
+  try {
+    const rupees = parseFloat(document.getElementById("spendamt").value);
+    const note = document.getElementById("spendnote").value.trim();
+    const account = document.getElementById("spendacct").value;
+    if (!(rupees > 0) || !account) { msg.textContent = "enter an amount and pick an account"; return; }
+    const paise = Math.round(rupees * 100);
+    const r = await api("/finance/expenses", { method: "POST", body: JSON.stringify({ account, amountPaise: paise, note: note || undefined }) });
+    if (!r.success) { msg.textContent = "server said: " + (r.message || r.error); return; }
+    msg.textContent = r.message;
+    document.getElementById("spendamt").value = "";
+    document.getElementById("spendnote").value = "";
+    load();
+  } catch (e) {
+    msg.textContent = "could not reach server — hit Refresh";
+  }
+}
+async function askAI() {
+  const msg = document.getElementById("goalmsg");
+  try {
+    const goal = document.getElementById("goaltext").value.trim();
+    if (!goal) { msg.textContent = "tell it what to do first"; return; }
+    msg.textContent = "thinking… (a minute or two on this laptop)";
+    const r = await api("/agent/run", { method: "POST", body: JSON.stringify({ goal }) });
+    if (r.error) { msg.textContent = "server said: " + (r.message || r.error); return; }
+    const id = r.id;
+    for (let i = 0; i < 60; i++) {
+      await new Promise(rr => setTimeout(rr, 10000));
+      const t = await api(`/tasks/${id}`);
+      if (t.state === "done") {
+        const kids = (t.output && t.output.childIds || []).length;
+        msg.textContent = `done ✓ — made ${kids} task(s) (${(t.output && t.output.model) || "model"})`;
+        load();
+        return;
+      }
+      if (t.state === "failed" || t.state === "cancelled") { msg.textContent = "it failed — " + ((t.error && t.error.message) || t.state); return; }
+      msg.textContent = `working… (${t.state})`;
+    }
+    msg.textContent = "still working — check Recent tasks";
+  } catch (e) {
+    msg.textContent = "could not reach server — hit Refresh";
+  }
+}
+load().then(loadAccounts);
 setInterval(load, 30000);
 </script>
 </body>
