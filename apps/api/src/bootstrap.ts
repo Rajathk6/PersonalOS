@@ -42,6 +42,7 @@ import {
 } from "@personalos/tools";
 import { createApp } from "./app.js";
 import { agentRouter } from "./agent.js";
+import { agentChatHandler } from "./agent.js";
 import { approvalRouter } from "./approvals.js";
 import { builderProposeHandler, builderRouter } from "./builder.js";
 import { memoryRouter } from "./memory.js";
@@ -183,7 +184,7 @@ export async function bootstrap(
   let host: WorkerHost | null = null;
   let scheduler: Scheduler | null = null;
   const memory = new MemoryStore(prisma);
-  const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel, memory };
+  const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel, memory, tools: toolRegistry, executor: toolExecutor };
   const builderDeps = {
     prisma, store, queue, models,
     defaultModel: opts.defaultModel,
@@ -194,6 +195,7 @@ export async function bootstrap(
     ...financeHandlers(toolExecutor),
     ...jobsHandlers({ store, queue, executor: toolExecutor, jobs: jobsStore }),
     ["builder.propose", builderProposeHandler(builderDeps)],
+    ["agent.chat", agentChatHandler(handlerDeps)],
   ]);
   if (opts.workerEnabled) {
     host = new WorkerHost(prisma, queue, {

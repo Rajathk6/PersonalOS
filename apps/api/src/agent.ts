@@ -6,7 +6,9 @@ import type { ModelProvider } from "@personalos/contracts";
 import type { ModelRegistry } from "@personalos/models";
 import { route } from "@personalos/models";
 import type { MemoryStore } from "@personalos/memory";
-import { plan, verify } from "@personalos/agents";
+import type { ToolExecutor, ToolRegistry } from "@personalos/tools";
+import { plan, runChatLoop, verify } from "@personalos/agents";
+import type { ChatTool } from "@personalos/agents";
 
 export interface AgentDeps {
   store: TaskRepository;
@@ -14,10 +16,13 @@ export interface AgentDeps {
   models: ModelRegistry;
   defaultModel: string;
   memory: MemoryStore;
+  tools: ToolRegistry;
+  executor: ToolExecutor;
 }
 
 const RunBodySchema = z.object({ goal: z.string().min(1).max(2000) });
 const VerifyBodySchema = z.object({ taskId: z.string().min(1), goal: z.string().min(1).max(2000) });
+const ChatBodySchema = z.object({ message: z.string().min(1).max(2000) });
 const AgentRunInput = z.object({ goal: z.string().min(1) });
 const AgentVerifyInput = z.object({ taskId: z.string().min(1), goal: z.string().min(1) });
 
@@ -47,6 +52,20 @@ export function agentRouter(deps: AgentDeps): Router {
     }
     void deps.queue
       .enqueue({ type: "agent.verify", input: { taskId: parsed.data.taskId, goal: parsed.data.goal }, priority: 0 })
+      .then((task) => res.status(201).json(task))
+      .catch(next);
+  });
+
+  // The one front door: a message becomes an agent.chat task. The loop runs
+  // in the worker (minutes on CPU are fine there); the request returns fast.
+  router.post("/chat", (req: Request, res: Response, next: NextFunction): void => {
+    const parsed = ChatBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "invalid", details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+    void deps.queue
+      .enqueue({ type: "agent.chat", input: { message: parsed.data.message }, priority: 0 })
       .then((task) => res.status(201).json(task))
       .catch(next);
   });
@@ -125,5 +144,60 @@ export function agentVerifyHandler(deps: AgentDeps): TaskHandler {
       sourceTaskId: task.id,
     });
     return { taskId: target.id, model: picked.id, ...verdict };
+  };
+}
+
+// Conversational turn: one message in, an orchestrated loop, one answer out.
+// History comes from episodic chat records (not the request), tools from the
+// live registry, permission gates from the executor. Nothing is hard-coded
+// about domains here — new capabilities appear as tools automatically.
+export function agentChatHandler(deps: AgentDeps): TaskHandler {
+  return async (task) => {
+    const parsed = z.object({ message: z.string().min(1) }).safeParse(task.input);
+    if (!parsed.success) {
+      throw Object.assign(new Error("agent.chat needs { message }"), { code: "AGENT_BAD_INPUT" });
+    }
+    const picked = pickModel(deps.models, deps.defaultModel);
+    const provider = deps.models.get(picked.id).provider;
+    const catalog: ChatTool[] = deps.tools.list().map((t) => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: t.inputSchema,
+    }));
+    const past = await deps.memory.recall({ kind: "episodic", limit: 20 });
+    const history = past
+      .filter((m) => typeof m.content === "object" && m.content !== null && "chat" in (m.content as Record<string, unknown>))
+      .slice(-6)
+      .flatMap((m) => {
+        const c = m.content as { user?: string; assistant?: string };
+        const turns: { role: string; content: string }[] = [];
+        if (typeof c.user === "string") turns.push({ role: "user", content: c.user });
+        if (typeof c.assistant === "string") turns.push({ role: "assistant", content: c.assistant });
+        return turns;
+      });
+    const outcome = await runChatLoop({
+      model: provider,
+      modelId: picked.id,
+      goal: parsed.data.message,
+      history,
+      tools: catalog,
+      execute: async (tool, input) => {
+        const result = await deps.executor.execute(tool, input, "worker", { taskId: task.id });
+        const approvalId = (result.metadata as { approvalId?: string } | undefined)?.approvalId;
+        return {
+          success: result.success,
+          message: result.message,
+          needsApproval: result.error_code === "CONFIRMATION_REQUIRED",
+          ...(approvalId !== undefined ? { approvalId } : {}),
+        };
+      },
+    });
+    await deps.memory.remember({
+      kind: "episodic",
+      content: { chat: true, user: parsed.data.message, assistant: outcome.answer, toolCalls: outcome.toolCalls },
+      importance: 0.5,
+      sourceTaskId: task.id,
+    });
+    return { answer: outcome.answer, steps: outcome.steps.length, toolCalls: outcome.toolCalls, approvals: outcome.approvals, model: picked.id };
   };
 }
