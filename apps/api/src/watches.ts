@@ -54,6 +54,27 @@ export function watchesRouter(store: WatchStore): Router {
       .catch(next);
   });
 
+  router.delete("/items/:itemId", (req: Request, res: Response, next: NextFunction): void => {
+    void store
+      .removeItem(req.params.itemId as string)
+      .then((ok) => (ok ? res.status(204).end() : res.status(404).json({ error: "not-found" })))
+      .catch(next);
+  });
+
+  router.delete("/:id/items/:itemId", (req: Request, res: Response, next: NextFunction): void => {
+    void store
+      .removeItem(req.params.itemId as string)
+      .then((ok) => (ok ? res.status(204).end() : res.status(404).json({ error: "not-found" })))
+      .catch(next);
+  });
+
+  router.delete("/:id/items", (req: Request, res: Response, next: NextFunction): void => {
+    void store
+      .clearItems(req.params.id as string)
+      .then((n) => res.json({ deleted: n }))
+      .catch(next);
+  });
+
   router.delete("/:id", (req: Request, res: Response, next: NextFunction): void => {
     void store
       .remove(req.params.id as string)

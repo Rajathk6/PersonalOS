@@ -12,6 +12,8 @@ import {
   OllamaProvider,
   OpenRouterProvider,
   discoverOllama,
+  FREE_CLOUD_MODELS,
+  qwen25_05b,
   qwen25_15b,
   qwen25_3b,
 } from "@personalos/models";
@@ -70,6 +72,7 @@ export interface BootstrapOptions {
   ollamaUrl: string;
   modelTimeoutMs: number;
   defaultModel: string;
+  modelMode: "local-first" | "cloud-first" | "local-only";
   openRouterKey: string | null;
   openRouterUrl: string;
   schedulerEnabled: boolean;
@@ -116,13 +119,30 @@ export async function bootstrap(
   // system still runs — and say so loudly.
   const discovered = await discoverOllama(opts.ollamaUrl);
   if (discovered.length === 0) {
-    // Nothing answered — register the static catalog (both sizes) so the
+    // Nothing answered — register the static catalog (all sizes) so the
     // system still runs, and say so loudly.
     models.register({ metadata: qwen25_3b, provider: ollama });
     models.register({ metadata: qwen25_15b, provider: ollama });
+    models.register({ metadata: qwen25_05b, provider: ollama });
     logger.warn("model discovery found nothing; using static catalog fallback");
   } else {
     for (const meta of discovered) models.register({ metadata: meta, provider: ollama });
+  }
+
+  // The model ladder. Local models stay first (private, offline, free); the
+  // FREE cloud tier is registered as the safety net for when the laptop
+  // cannot hold a model at all (RAM) or for hard reasoning that a 1.5B
+  // cannot do. Nothing is switched automatically without the router's
+  // order — the fallback chain only engages AFTER a local attempt fails.
+  if (openrouter !== null) {
+    for (const meta of FREE_CLOUD_MODELS) {
+      try {
+        models.register({ metadata: meta, provider: openrouter });
+      } catch {
+        // already registered (duplicate) — fine
+      }
+    }
+    logger.info({ cloud: FREE_CLOUD_MODELS.map((m) => m.id) }, "free cloud models registered");
   }
   const benchmarks = new BenchmarkStore(prisma);
   logger.info({ models: models.list().map((m) => m.id) }, "models registered");
@@ -196,11 +216,12 @@ export async function bootstrap(
   let host: WorkerHost | null = null;
   let scheduler: Scheduler | null = null;
   const memory = new MemoryStore(prisma);
-  const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel, memory, tools: toolRegistry, executor: toolExecutor };
+  const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel, memory, tools: toolRegistry, executor: toolExecutor, modelMode: opts.modelMode };
   const builderDeps = {
     prisma, store, queue, models,
     defaultModel: opts.defaultModel,
     capabilities, tools: toolRegistry,
+    modelMode: opts.modelMode,
   };
   const allHandlers = new Map([
     ...defaultHandlers(handlerDeps),

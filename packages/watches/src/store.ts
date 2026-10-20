@@ -137,6 +137,18 @@ export class WatchStore {
     return res.count === 1;
   }
 
+  // Delete a single found item (the user's "remove that link" action).
+  async removeItem(itemId: string): Promise<boolean> {
+    const res = await this.db.watchItem.deleteMany({ where: { id: itemId } });
+    return res.count === 1;
+  }
+
+  // Delete everything a watch found, but keep the watch itself.
+  async clearItems(watchId: string): Promise<number> {
+    const res = await this.db.watchItem.deleteMany({ where: { watchId } });
+    return res.count;
+  }
+
   async markChecked(id: string, now: Date = new Date()): Promise<void> {
     await this.db.watch.update({ where: { id }, data: { lastCheckedAt: now } });
   }

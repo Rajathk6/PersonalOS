@@ -118,5 +118,53 @@ export function watchTools(store: WatchStore): (Tool & { version: string })[] {
     },
   };
 
-  return [create, check, pageRead, list];
+  // Deleting is a first-class verb, not a hidden endpoint: the user says
+  // "remove that link" in chat and the agent calls this. A delete removes
+  // the WATCH (and its findings) — irreversible, so it is a Confirm-gated
+  // permission, and the policy below decides.
+  const remove: Tool & { version: string } = {
+    name: "watch.delete",
+    version: "1.0",
+    description: "Delete one of my watches (stops watching it and forgets what it found)",
+    inputSchema: { watchId: "the watch id from watch.list" },
+    requiredPermission: "watch.delete",
+    risk: "High",
+    execute: async (input: unknown): Promise<ToolResult> => {
+      const parsed = z.object({ watchId: z.string().min(1) }).safeParse(input);
+      if (!parsed.success) {
+        return { success: false, error_code: "BAD_INPUT", retryable: false, message: "watchId required" };
+      }
+      const w = await store.get(parsed.data.watchId);
+      if (w === null) {
+        return { success: false, error_code: "NOT_FOUND", retryable: false, message: "no such watch" };
+      }
+      const removed = await store.remove(parsed.data.watchId);
+      return {
+        success: removed, error_code: removed ? null : "NOT_FOUND", retryable: false,
+        message: removed ? `watch "${w.name}" deleted` : "could not delete that watch",
+      };
+    },
+  };
+
+  const forget: Tool & { version: string } = {
+    name: "watch.forget_item",
+    version: "1.0",
+    description: "Forget one found link (remove it from my feed) without stopping the watch",
+    inputSchema: { itemId: "the item id from watch.list" },
+    requiredPermission: "watch.write",
+    risk: "Low",
+    execute: async (input: unknown): Promise<ToolResult> => {
+      const parsed = z.object({ itemId: z.string().min(1) }).safeParse(input);
+      if (!parsed.success) {
+        return { success: false, error_code: "BAD_INPUT", retryable: false, message: "itemId required" };
+      }
+      const ok = await store.removeItem(parsed.data.itemId);
+      return {
+        success: ok, error_code: ok ? null : "NOT_FOUND", retryable: false,
+        message: ok ? "forgotten" : "no such item",
+      };
+    },
+  };
+
+  return [create, check, pageRead, list, remove, forget];
 }

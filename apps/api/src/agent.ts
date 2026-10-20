@@ -18,6 +18,7 @@ export interface AgentDeps {
   memory: MemoryStore;
   tools: ToolRegistry;
   executor: ToolExecutor;
+  modelMode: "local-first" | "cloud-first" | "local-only";
 }
 
 const RunBodySchema = z.object({ goal: z.string().min(1).max(2000) });
@@ -73,13 +74,17 @@ export function agentRouter(deps: AgentDeps): Router {
   return router;
 }
 
-export function pickModel(models: ModelRegistry, defaultModel: string): { id: string; provider: ModelProvider } {
+export function pickModel(models: ModelRegistry, defaultModel: string, mode: "local-first" | "cloud-first" | "local-only" = "local-first"): { id: string; provider: ModelProvider } {
   // Router picks by hints; the configured default wins ties (local-first
   // privacy out of the box, override via config with no code change).
-  const ordered = [...models.list()].sort((a, b) =>
-    a.id === defaultModel ? -1 : b.id === defaultModel ? 1 : 0,
-  );
-  const meta = route(ordered, { privacySensitive: true });
+  // MODEL_MODE decides whether the free cloud tier may lead the ladder.
+  const all = [...models.list()];
+  const cloud = all.filter((m) => m.availability === "cloud");
+  const local = all.filter((m) => m.availability === "local");
+  const ordered =
+    mode === "cloud-first" ? [...cloud, ...local] : [...local, ...cloud];
+  ordered.sort((a, b) => (a.id === defaultModel ? -1 : b.id === defaultModel ? 1 : 0));
+  const meta = route(ordered, { privacySensitive: mode !== "cloud-first" });
   return { id: meta.id, provider: models.get(meta.id).provider };
 }
 
@@ -115,7 +120,7 @@ export function agentRunHandler(deps: AgentDeps): TaskHandler {
     if (!parsed.success) {
       throw Object.assign(new Error("agent.run needs { goal }"), { code: "AGENT_BAD_INPUT" });
     }
-    const picked = pickModel(deps.models, deps.defaultModel);
+    const picked = pickModel(deps.models, deps.defaultModel, deps.modelMode);
     const provider = deps.models.get(picked.id).provider;
     const planned = await plan(provider, picked.id, parsed.data.goal);
     const childIds: string[] = [];
@@ -156,7 +161,7 @@ export function agentVerifyHandler(deps: AgentDeps): TaskHandler {
         code: "VERIFY_EARLY",
       });
     }
-    const picked = pickModel(deps.models, deps.defaultModel);
+    const picked = pickModel(deps.models, deps.defaultModel, deps.modelMode);
     const provider = deps.models.get(picked.id).provider;
     const verdict = await verify(provider, picked.id, parsed.data.goal, target.output);
     // Episodic memory: what happened and whether it worked — the raw material
@@ -181,7 +186,7 @@ export function agentChatHandler(deps: AgentDeps): TaskHandler {
     if (!parsed.success) {
       throw Object.assign(new Error("agent.chat needs { message }"), { code: "AGENT_BAD_INPUT" });
     }
-    const picked = pickModel(deps.models, deps.defaultModel);
+    const picked = pickModel(deps.models, deps.defaultModel, deps.modelMode);
     const provider = deps.models.get(picked.id).provider;
     // A provider that falls back to a smaller local model when the preferred
     // one cannot load (RAM) — the chat must not die on a busy laptop.
@@ -212,23 +217,42 @@ export function agentChatHandler(deps: AgentDeps): TaskHandler {
         if (typeof c.assistant === "string") turns.push({ role: "assistant", content: c.assistant });
         return turns;
       });
-    const outcome = await runChatLoop({
-      model: resilient,
-      modelId: picked.id,
-      goal: parsed.data.message,
-      history,
-      tools: catalog,
-      execute: async (tool, input) => {
-        const result = await deps.executor.execute(tool, input, "worker", { taskId: task.id });
-        const approvalId = (result.metadata as { approvalId?: string } | undefined)?.approvalId;
-        return {
-          success: result.success,
-          message: result.message,
-          needsApproval: result.error_code === "CONFIRMATION_REQUIRED",
-          ...(approvalId !== undefined ? { approvalId } : {}),
-        };
-      },
-    });
+    let outcome;
+    try {
+      outcome = await runChatLoop({
+        model: resilient,
+        modelId: picked.id,
+        goal: parsed.data.message,
+        history,
+        tools: catalog,
+        execute: async (tool, input) => {
+          const result = await deps.executor.execute(tool, input, "worker", { taskId: task.id });
+          const approvalId = (result.metadata as { approvalId?: string } | undefined)?.approvalId;
+          return {
+            success: result.success,
+            message: result.message,
+            needsApproval: result.error_code === "CONFIRMATION_REQUIRED",
+            ...(approvalId !== undefined ? { approvalId } : {}),
+          };
+        },
+      });
+    } catch (err) {
+      // A dead model must not look like a broken chat. Say what is actually
+      // wrong and what to do about it — the RAM story is the common one on
+      // a 12GB laptop with a browser and an IDE open.
+      const message = err instanceof Error ? err.message : "unknown error";
+      const oom = /too large|out of memory|MODEL_UNAVAILABLE|fetch failed/i.test(message);
+      return {
+        answer: oom
+          ? "My brain isn't loaded right now — the laptop is out of RAM (a Java app is holding ~3GB). Close it (or a few Chrome tabs) and ask me again. If you want a backup brain, put a free OpenRouter key in .env (OPENROUTER_API_KEY) and I'll use their free models when the local one can't load."
+          : `I hit a problem: ${message}. Nothing was lost — try rephrasing.`,
+        steps: 0,
+        toolCalls: 0,
+        approvals: [],
+        model: picked.id,
+        degraded: true,
+      };
+    }
     await deps.memory.remember({
       kind: "episodic",
       content: { chat: true, user: parsed.data.message, assistant: outcome.answer, toolCalls: outcome.toolCalls },

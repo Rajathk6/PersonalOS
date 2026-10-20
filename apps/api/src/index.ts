@@ -18,6 +18,7 @@ async function main(): Promise<void> {
     ollamaUrl: config.ollamaUrl,
     modelTimeoutMs: config.modelTimeoutMs,
     defaultModel: config.defaultModel,
+    modelMode: config.modelMode,
     openRouterKey: config.openRouterKey,
     openRouterUrl: config.openRouterUrl,
     schedulerEnabled: config.schedulerEnabled,

@@ -6,65 +6,74 @@
 <title>PersonalOS</title>
 <style>
   body { font-family: system-ui, sans-serif; margin: 0; padding: 10px; background: #0f0f0f; color: #eee; }
-  h1 { font-size: 1.15em; margin: 0 0 8px; }
-  h2 { font-size: .95em; margin: 0 0 8px; color: #8cf; }
+  h1 { font-size: 1.1em; margin: 0 0 8px; }
+  h2 { font-size: .92em; margin: 0 0 8px; color: #8cf; }
   .card { background: #1a1a1a; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
-  .row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; font-size: .92em; }
-  .dim { color: #888; font-size: .82em; }
-  button { font-size: .95em; padding: 9px 14px; border: 0; border-radius: 8px; }
+  .row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; font-size: .9em; align-items: flex-start; }
+  .dim { color: #888; font-size: .8em; }
+  button { font-size: .9em; padding: 9px 13px; border: 0; border-radius: 8px; background: #2c3a4a; color: #eee; }
   .approve { background: #2a7; color: #fff; }
   .deny { background: #a33; color: #fff; }
+  .ghost { background: transparent; border: 1px solid #444; color: #999; padding: 4px 9px; }
   a { color: #8cf; }
-  #tokenbox input, #chattext { width: 100%; box-sizing: border-box; padding: 11px; font-size: 1em;
-    background: #222; color: #eee; border: 1px solid #444; border-radius: 8px; }
-  #chatlog { max-height: 52vh; overflow-y: auto; }
+  #tokenbox input, #chattext, #newwatch input, #newwatch select { width: 100%; box-sizing: border-box; padding: 11px;
+    font-size: 1em; background: #222; color: #eee; border: 1px solid #444; border-radius: 8px; }
+  /* CHAT IS THE WHOLE TOP OF THE PAGE */
+  #chatcard { min-height: 62vh; display: flex; flex-direction: column; }
+  #chatlog { flex: 1; overflow-y: auto; max-height: 58vh; }
   #chatlog .u { text-align: right; margin: 6px 0; }
   #chatlog .u span { background: #2c5a8f; border-radius: 10px; padding: 8px 12px; display: inline-block; max-width: 88%; }
   #chatlog .a { margin: 6px 0; }
   #chatlog .a span { background: #222; border: 1px solid #3a3a3a; border-radius: 10px; padding: 8px 12px; display: inline-block; max-width: 88%; }
   #chatrow { display: flex; gap: 6px; margin-top: 8px; }
   #chatrow button { white-space: nowrap; }
-  .hint { font-size: .78em; color: #777; margin-top: 6px; }
+  .hint { font-size: .76em; color: #777; margin-top: 6px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+  .tabs button.on { background: #357; color: #fff; }
+  details summary { cursor: pointer; color: #8cf; font-size: .9em; margin-bottom: 6px; }
 </style>
 </head>
 <body>
 <h1>PersonalOS</h1>
 
-<div id="tokenbox" class="card" style="display:none">
-  <h2>API token</h2>
-  <input id="token" type="password" placeholder="paste API token">
-  <button class="approve" onclick="saveToken()">Save</button>
-</div>
-
-<!-- THE one area. Everything is a conversation. -->
-<div class="card">
-  <h2>Ask anything</h2>
+<!-- 1. CHAT — the whole top of the page -->
+<div class="card" id="chatcard">
+  <h2>Chat</h2>
   <div id="chatlog"></div>
   <div id="chatrow">
-    <input id="chattext" type="text" placeholder="remind me at 7am to… · note that… · watch this site for… · what is this link?">
+    <input id="chattext" type="text" placeholder="anything: remind me… · note that… · watch this… · delete that…">
     <button class="approve" onclick="sendChat()">Send</button>
   </div>
-  <div class="hint">Paste a link and ask about it. Say "notify me when…&quot; to set a watch. It uses tools on its own.</div>
+  <div class="hint">Paste a link and ask about it. Say &quot;keep me posted when…&quot; to set a watch. Deletions work here too.</div>
 </div>
 
+<!-- 2. STORED DETAILS — everything the AI saved, with delete -->
 <div class="card">
-  <h2>Kept you posted <span id="acount"></span></h2>
-  <div id="alerts" class="dim">loading…</div>
+  <h2>Stored details <span id="scount"></span></h2>
+  <div class="tabs">
+    <button class="on" onclick="tab('alerts', this)">Alerts</button>
+    <button onclick="tab('notes', this)">Notes</button>
+    <button onclick="tab('watches', this)">Watches</button>
+  </div>
+  <div id="stored" class="dim">loading…</div>
 </div>
 
+<!-- 3. SETTINGS — token, health, housekeeping -->
 <div class="card">
-  <h2>Needs your approval <span id="pcount"></span></h2>
-  <div id="approvals"></div>
-</div>
-
-<div class="card">
-  <h2>Status</h2>
-  <div id="health" class="dim">loading…</div>
+  <details id="settings"><summary>Settings &amp; status</summary>
+    <div id="tokenbox" style="display:none; margin-bottom:8px">
+      <input id="token" type="password" placeholder="API token">
+      <button class="approve" onclick="saveToken()">Save</button>
+    </div>
+    <div id="health" class="dim">loading…</div>
+    <div class="hint">Token, health and housekeeping live here — the chat stays for talking.</div>
+  </details>
 </div>
 
 <script>
 let token = localStorage.getItem("pos_token") || "";
-if (!token) document.getElementById("tokenbox").style.display = "block";
+let currentTab = "alerts";
+if (!token) { document.getElementById("tokenbox").style.display = "block"; document.getElementById("settings").open = true; }
 function saveToken() {
   token = document.getElementById("token").value.trim();
   localStorage.setItem("pos_token", token);
@@ -73,8 +82,10 @@ function saveToken() {
 }
 async function api(path, opts) {
   const r = await fetch(path, { ...(opts || {}), headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json", ...((opts && opts.headers) || {}) } });
+  if (r.status === 204) return {};
   return r.json();
 }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 function bubble(who, text) {
   const log = document.getElementById("chatlog");
   const div = document.createElement("div");
@@ -102,23 +113,29 @@ async function sendChat() {
       if (t.state === "done") {
         const out = t.output || {};
         waiting.textContent = out.answer || "(done)";
-        if (out.approvals && out.approvals.length > 0) waiting.textContent += " — see the approval below";
         load();
         return;
       }
       if (t.state === "failed" || t.state === "cancelled") {
-        waiting.textContent = "it failed — " + (((t.output || {}).answer) || t.state);
+        // Surface the REAL reason, never just "failed".
+        waiting.textContent = (t.error && t.error.message) ? t.error.message : "it failed (" + t.state + ")";
         return;
       }
       waiting.textContent = `working on it… (${t.state})`;
     }
     waiting.textContent = "still working — check back in a bit";
   } catch (e) {
-    waiting.textContent = "could not reach server — check the laptop";
+    waiting.textContent = "could not reach the laptop — check that the API is running";
   }
 }
 document.getElementById("chattext").addEventListener("keydown", e => { if (e.key === "Enter") sendChat(); });
 
+function tab(name, btn) {
+  currentTab = name;
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("on"));
+  btn.classList.add("on");
+  load();
+}
 async function load() {
   try {
     const h = await api("/health");
@@ -127,37 +144,39 @@ async function load() {
   } catch (e) {
     document.getElementById("health").textContent = "unreachable — is the API running on the laptop?";
   }
+  const box = document.getElementById("stored");
   try {
-    const a = await api("/approvals?status=pending");
-    document.getElementById("pcount").textContent = `(${a.approvals.length})`;
-    document.getElementById("approvals").innerHTML = a.approvals.length === 0
-      ? '<span class="dim">nothing waiting</span>'
-      : a.approvals.map(x =>
-          `<div class="row"><span>${x.toolName}<br><span class="dim">${x.reason}</span></span>
-           <span><button class="approve" onclick="resolve('${x.id}',true)">Yes</button><button class="deny" onclick="resolve('${x.id}',false)">No</button></span></div>`
-        ).join("");
-  } catch (e) { /* offline */ }
-  try {
-    const f = await api("/alerts?limit=15");
-    const ns = f.notifications || [];
-    document.getElementById("acount").textContent = `(${ns.length})`;
-    document.getElementById("alerts").innerHTML = ns.length === 0
-      ? '<span class="dim">nothing yet — tell it what to keep an eye on</span>'
-      : ns.map(n =>
-          `<div class="row"><span><b>${n.title.slice(0, 90)}</b><br>
-            <span class="dim">${n.source}${n.eligibility && n.eligibility !== "watch" ? " · " + n.eligibility : ""}</span></span>
-           <span><a href="${n.applyUrl || n.sourceUrl}" target="_blank">open</a></span></div>`
-        ).join("");
-  } catch (e) { /* offline */ }
+    if (currentTab === "alerts") {
+      const f = await api("/alerts?limit=25");
+      const ns = f.notifications || [];
+      document.getElementById("scount").textContent = `(${ns.length})`;
+      box.innerHTML = ns.length === 0 ? '<span class="dim">nothing yet</span>' : ns.map(n =>
+        `<div class="row"><span><b>${esc(n.title.slice(0, 100))}</b><br>
+          <span class="dim">${esc(n.source || "")}${n.eligibility && n.eligibility !== "watch" ? " · " + n.eligibility : ""}</span></span>
+         <span><a href="${n.applyUrl || n.sourceUrl}" target="_blank">open</a>
+         ${n.itemId ? ` <button class="ghost" onclick="delItem('${n.itemId}')">✕</button>` : ""}</span></div>`).join("");
+    } else if (currentTab === "notes") {
+      const f = await api("/memory/search?limit=25");
+      const ms = f.memories || [];
+      document.getElementById("scount").textContent = `(${ms.length})`;
+      box.innerHTML = ms.length === 0 ? '<span class="dim">no notes yet</span>' : ms.map(m =>
+        `<div class="row"><span>${esc(JSON.stringify(m.content).slice(0, 160))}<br>
+          <span class="dim">${esc(m.kind)}</span></span>
+         <span><button class="ghost" onclick="delNote('${m.id}')">✕</button></span></div>`).join("");
+    } else {
+      const f = await api("/watches");
+      const ws = f.watches || [];
+      document.getElementById("scount").textContent = `(${ws.length})`;
+      box.innerHTML = ws.length === 0 ? '<span class="dim">no watches — ask the chat to keep you posted</span>' : ws.map(w =>
+        `<div class="row"><span><b>${esc(w.name)}</b><br>
+          <span class="dim">${esc((w.targets || []).join(", ").slice(0, 90))} · ${esc((w.terms || []).join(", ") || "any change")}</span></span>
+         <span><button class="ghost" onclick="delWatch('${w.id}')">delete</button></span></div>`).join("");
+    }
+  } catch (e) { box.innerHTML = '<span class="dim">could not load</span>'; }
 }
-async function resolve(id, ok) {
-  try {
-    await api(`/approvals/${id}/${ok ? "approve" : "deny"}`, { method: "POST", body: JSON.stringify({ by: "phone" }) });
-  } catch (e) {
-    document.getElementById("pcount").textContent = "(tap failed — try again)";
-  }
-  load();
-}
+async function delItem(id) { await api(`/watches/items/${id}`, { method: "DELETE" }); load(); }
+async function delNote(id) { await api(`/memory/${id}`, { method: "DELETE" }); load(); }
+async function delWatch(id) { await api(`/watches/${id}`, { method: "DELETE" }); load(); }
 load();
 setInterval(load, 30000);
 </script>

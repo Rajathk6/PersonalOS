@@ -22,6 +22,8 @@ const DEFAULTS: PolicyRule[] = [
   { tool: "watch.create", verdict: "Allowed", reason: "creates a read-only watch, no side effect" },
   { tool: "watch.check", verdict: "Allowed", reason: "reads public pages" },
   { tool: "watch.list", verdict: "Allowed", reason: "reads user's own watches" },
+  { tool: "watch.forget_item", verdict: "Allowed", reason: "removes one found link the user asked to forget" },
+  { tool: "watch.delete", verdict: "Confirm", reason: "stops a watch permanently" },
   { tool: "page.read", verdict: "Allowed", reason: "reads a page the user asked about" },
   { tool: "filesystem.delete", verdict: "Confirm", reason: "deletion needs a human" },
   { tool: "shell.execute", verdict: "Confirm", reason: "shell always needs a human unless denied outright" },
@@ -86,4 +88,5 @@ export const KNOWN_PERMISSIONS = [
   "jobs.write",
   "watch.read",
   "watch.write",
+  "watch.delete",
 ];

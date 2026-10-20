@@ -21,6 +21,7 @@ export interface BuilderDeps {
   defaultModel: string;
   capabilities: CapabilityRegistry;
   tools: ToolRegistry;
+  modelMode: "local-first" | "cloud-first" | "local-only";
 }
 
 // Requirement -> design -> review -> approval -> install. The LLM drafts and
@@ -91,7 +92,7 @@ export function builderProposeHandler(deps: BuilderDeps): TaskHandler {
     if (!parsed.success) {
       throw Object.assign(new Error("builder.propose needs { description }"), { code: "BUILDER_BAD_INPUT" });
     }
-    const picked = pickModel(deps.models, deps.defaultModel);
+    const picked = pickModel(deps.models, deps.defaultModel, deps.modelMode);
     const provider = deps.models.get(picked.id).provider;
     const toolList = deps.tools.list();
     const drafted = await draftManifest(

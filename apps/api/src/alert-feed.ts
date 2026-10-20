@@ -33,6 +33,7 @@ export function alertFeedRouter(deps: AlertFeedDeps): Router {
       const feed = [
         ...watchItems.map((w) => ({
           kind: "watch" as const,
+          itemId: w.id,
           title: w.title,
           source: w.watchName,
           sourceUrl: w.url,
@@ -44,6 +45,7 @@ export function alertFeedRouter(deps: AlertFeedDeps): Router {
         })),
         ...jobRows.map((n) => ({
           kind: "job" as const,
+          itemId: null,
           title: n.title,
           source: n.sourceOrg,
           sourceUrl: n.sourceUrl,

@@ -30,6 +30,11 @@ const EnvSchema = z.object({
   // Cloud fallback (Phase 10): unset = no cloud provider registered, no spend.
   OPENROUTER_API_KEY: z.string().default(""),
   OPENROUTER_URL: z.string().url().default("https://openrouter.ai/api/v1"),
+  // Model ladder order. local-first keeps personal data on the device and
+  // uses the free cloud tier only when the local model cannot run.
+  // cloud-first uses the (free, stronger) API first. local-only never
+  // sends anything off the machine.
+  MODEL_MODE: z.enum(["local-first", "cloud-first", "local-only"]).default("local-first"),
   // Tool sandbox root (Phase 3): filesystem tools cannot escape this dir.
   WORKSPACE_DIR: z.string().min(1).default("workspace"),
   // Scheduler (Phase 5): time/event trigger owner. Same enum-bool pattern as
@@ -62,6 +67,7 @@ export interface Config {
   modelTimeoutMs: number;
   openRouterKey: string | null;
   openRouterUrl: string;
+  modelMode: "local-first" | "cloud-first" | "local-only";
   workspaceDir: string;
   schedulerEnabled: boolean;
   schedulerPollMs: number;
@@ -108,6 +114,7 @@ function loadConfig(): Config {
     modelTimeoutMs: env.MODEL_TIMEOUT_MS,
     openRouterKey: env.OPENROUTER_API_KEY === "" ? null : env.OPENROUTER_API_KEY,
     openRouterUrl: env.OPENROUTER_URL,
+    modelMode: env.MODEL_MODE,
     workspaceDir: env.WORKSPACE_DIR,
     schedulerEnabled: env.SCHEDULER_ENABLED,
     schedulerPollMs: env.SCHEDULER_POLL_MS,

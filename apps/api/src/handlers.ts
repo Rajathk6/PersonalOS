@@ -36,10 +36,11 @@ export interface HandlerDeps {
   memory: MemoryStore;
   tools: ToolRegistry;
   executor: ToolExecutor;
+  modelMode: "local-first" | "cloud-first" | "local-only";
 }
 
 export function defaultHandlers(deps: HandlerDeps): Map<string, TaskHandler> {
-  const agentDeps = { store: deps.store, queue: deps.queue, models: deps.models, defaultModel: deps.defaultModel, memory: deps.memory, tools: deps.tools, executor: deps.executor };
+  const agentDeps = { store: deps.store, queue: deps.queue, models: deps.models, defaultModel: deps.defaultModel, memory: deps.memory, tools: deps.tools, executor: deps.executor, modelMode: deps.modelMode };
   return new Map([
     ["reminder.send", reminderSend],
     ["memory.note", memoryNoteHandler(deps.memory)],
