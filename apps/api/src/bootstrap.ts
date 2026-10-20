@@ -25,11 +25,14 @@ import {
 } from "@personalos/finance";
 import {
   JobsStore,
+  NotificationStore,
   jobsHandlers,
   jobsManifest,
   jobsRouter,
   jobsTools,
 } from "@personalos/jobs";
+import { jobsAlertRouter } from "./jobs-alerts.js";
+import { alertFeedRouter } from "./alert-feed.js";
 import { Scheduler } from "@personalos/scheduler";
 import {
   DefaultPermissionEngine,
@@ -42,6 +45,7 @@ import {
 } from "@personalos/tools";
 import { createApp } from "./app.js";
 import { agentRouter } from "./agent.js";
+import { agentChatHandler } from "./agent.js";
 import { approvalRouter } from "./approvals.js";
 import { builderProposeHandler, builderRouter } from "./builder.js";
 import { memoryRouter } from "./memory.js";
@@ -158,6 +162,7 @@ export async function bootstrap(
   const financeToolList = financeTools(financeStore);
   for (const tool of financeToolList) toolRegistry.register(tool);
   const jobsStore = new JobsStore(prisma);
+  const notificationStore = new NotificationStore(prisma);
   const jobsToolList = jobsTools(jobsStore, toolExecutor);
   for (const tool of jobsToolList) toolRegistry.register(tool);
   const capabilities = new CapabilityRegistry(async (manifest, enabled) => {
@@ -183,7 +188,7 @@ export async function bootstrap(
   let host: WorkerHost | null = null;
   let scheduler: Scheduler | null = null;
   const memory = new MemoryStore(prisma);
-  const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel, memory };
+  const handlerDeps = { store, queue, models, defaultModel: opts.defaultModel, memory, tools: toolRegistry, executor: toolExecutor };
   const builderDeps = {
     prisma, store, queue, models,
     defaultModel: opts.defaultModel,
@@ -194,6 +199,7 @@ export async function bootstrap(
     ...financeHandlers(toolExecutor),
     ...jobsHandlers({ store, queue, executor: toolExecutor, jobs: jobsStore }),
     ["builder.propose", builderProposeHandler(builderDeps)],
+    ["agent.chat", agentChatHandler(handlerDeps)],
   ]);
   if (opts.workerEnabled) {
     host = new WorkerHost(prisma, queue, {
@@ -233,6 +239,23 @@ export async function bootstrap(
     memory: memoryRouter(memory),
     finance: financeRouter(financeStore, toolExecutor),
     jobs: jobsRouter(jobsStore, queue),
+    jobAlerts: jobsAlertRouter({
+      prisma,
+      notifications: notificationStore,
+      memory,
+      onNewNotifications: async (items) => {
+        // A new official opening becomes a task the user will see: the
+        // dashboard feed reads notifications, the task keeps it auditable.
+        for (const item of items) {
+          await queue.enqueue({
+            type: "job.alert",
+            input: { text: item.title, url: item.url, source: item.sourceOrg },
+            priority: 0,
+          });
+        }
+      },
+    }),
+    alertFeed: alertFeedRouter({ prisma, notifications: notificationStore, memory }),
     builder: builderRouter(builderDeps),
     workers: workerRouter({ prisma, store, queue, tokens: opts.workerTokens }),
     toolRun: toolRunRouter(toolExecutor),

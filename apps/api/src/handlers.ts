@@ -3,6 +3,7 @@ import type { Task } from "@personalos/contracts";
 import type { PgQueue, TaskHandler, TaskRepository } from "@personalos/core";
 import type { MemoryStore } from "@personalos/memory";
 import type { ModelRegistry } from "@personalos/models";
+import type { ToolExecutor, ToolRegistry } from "@personalos/tools";
 import { agentRunHandler, agentVerifyHandler } from "./agent.js";
 import { logger } from "./logger.js";
 
@@ -33,10 +34,12 @@ export interface HandlerDeps {
   models: ModelRegistry;
   defaultModel: string;
   memory: MemoryStore;
+  tools: ToolRegistry;
+  executor: ToolExecutor;
 }
 
 export function defaultHandlers(deps: HandlerDeps): Map<string, TaskHandler> {
-  const agentDeps = { store: deps.store, queue: deps.queue, models: deps.models, defaultModel: deps.defaultModel, memory: deps.memory };
+  const agentDeps = { store: deps.store, queue: deps.queue, models: deps.models, defaultModel: deps.defaultModel, memory: deps.memory, tools: deps.tools, executor: deps.executor };
   return new Map([
     ["reminder.send", reminderSend],
     ["memory.note", memoryNoteHandler(deps.memory)],

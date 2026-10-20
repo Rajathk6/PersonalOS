@@ -4,6 +4,7 @@ import type { PgQueue, TaskRepository } from "@personalos/core";
 import type { ToolExecutor } from "@personalos/tools";
 import { z } from "zod";
 import type { JobsStore } from "./store.js";
+import { logger } from "./logger.js";
 
 const CheckNowInput = z.object({ watchId: z.string().uuid().optional() });
 
@@ -55,5 +56,38 @@ export function jobsHandlers(deps: JobsHandlerDeps): Map<string, TaskHandler> {
     }
     return { message: result.message, fresh: fresh.length, notified };
   };
-  return new Map([["jobs.check_now", checkNow]]);
+
+  // An official opening reached the pipeline. Make it VISIBLE and REMEMBERED:
+  // the alert task carries the official link, and an episodic memory records
+  // it so "what did I find?" is answerable later without re-scraping.
+  const jobAlert: TaskHandler = async (task: Task) => {
+    const parsed = z
+      .object({
+        title: z.string().min(1),
+        url: z.string().url(),
+        source: z.string().min(1),
+        eligibility: z.string().optional(),
+        score: z.number().optional(),
+      })
+      .safeParse(task.input);
+    if (!parsed.success) {
+      throw Object.assign(new Error("job.alert needs { title, url, source }"), { code: "ALERT_BAD_INPUT" });
+    }
+    logger.info(
+      { title: parsed.data.title, source: parsed.data.source, score: parsed.data.score },
+      "official opening found",
+    );
+    return {
+      title: parsed.data.title,
+      url: parsed.data.url,
+      source: parsed.data.source,
+      eligibility: parsed.data.eligibility ?? "unreviewed",
+      foundAt: new Date().toISOString(),
+    };
+  };
+
+  return new Map([
+    ["jobs.check_now", checkNow],
+    ["job.alert", jobAlert],
+  ]);
 }

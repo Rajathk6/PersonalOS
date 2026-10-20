@@ -1,11 +1,17 @@
 # HANDOFF — tomorrow's working memory (updated end of each workday)
 
-## TOMORROW (2026-10-11): three-tier execution starts
-- Read docs/TOPOLOGY.md first (user-corrected architecture: user phone UI / middleman relay+queue+light / laptop full store+heavy).
+## TOMORROW (2026-10-11): three-tier execution starts- Read docs/TOPOLOGY.md first (user-corrected architecture: user phone UI / middleman relay+queue+light / laptop full store+heavy).
 - Step 1: assess the middleman phone (need from user: Android version, RAM, Termux OK?).
 - Step 2: design the SQLite↔Postgres sync protocol (ownership by id, idempotency dedup, outbox/inbox, conflict rules).
 - Step 3: SERVER_MODE config on laptop (standalone/main/coordinator-only/worker-only).
 - Standing rules still hold: feature branches + PRs, write tests with code, verify per bundle.
+
+## End of day 2026-10-10 — chat build parked, needs proof
+- Branch feature/agent-chat (UNMERGED): single chat UI replaces the 4 form-cards; runChatLoop ReAct orchestrator (think→1 tool→observe, max 6 steps, approvals park back into chat); agent.chat handler + POST /agent/chat; memory.note task; planner knows reminder.send + memory.note; ToolRegistry.list now includes inputSchema.
+- NOT YET PROVEN: first live chat turn kept dying (Ollama 500s at 5min under RAM pressure: 10/11GB used). Mitigations landed but unverified: catalog trimmed to name+one-liner (prompt was OOMing KV cache), draft maxTokens cut, MODEL_TIMEOUT 600s.
+- Tomorrow first: boot all, POST /agent/chat "add 150 for dosa to cash" (create cash first), watch it complete. If 500s persist: close Chrome to free RAM, or pull qwen2.5:1.5b.
+- Machine left: DB running, API/ollama stopped, dev DB has ONLY the user's "Office at 10am" done reminder. Laptop rebooted overnight once — recovery held.
+- Still open from before: middleman phone details (Android/RAM/Termux) for the three-tier execution.
 
 ## Where we are (2026-10-09 morning)- `main` = v0.2 (Phase 1). `develop` = Phase 2 + Phase 3 + Phase 4 merged (PRs #9, #10, #11).
 - Next release: v0.3 (Phases 2–4) — deliberate PR develop→main + tag, when ready.

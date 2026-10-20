@@ -204,6 +204,31 @@ model JobFinding {
   @@map("job_findings")
 }
 
+// Harvested notifications (Phase 13): official job/exam notifications pulled
+// from AUTHENTIC sources only. contentHash = dedup across every source and
+// every run (the same circular is never re-alerted). applyUrl points at the
+// official application page — never a third-party aggregator.
+model JobNotification {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contentHash  String    @unique @map("content_hash")
+  sourceOrg    String    @map("source_org")
+  sourceUrl    String    @map("source_url")
+  title        String
+  summary      String?
+  applyUrl     String?   @map("apply_url")
+  publishedAt  String?   @map("published_at")
+  eligibility  String?   @default("unreviewed")
+  matchScore   Float     @default(0) @map("match_score")
+  matchReasons String[]  @default([]) @map("match_reasons")
+  harvestedBy  String    @default("laptop") @map("harvested_by")
+  alertedAt    DateTime? @map("alerted_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([createdAt(sort: Desc)], name: "job_notifications_recent")
+  @@index([eligibility, matchScore(sort: Desc)], name: "job_notifications_match")
+  @@map("job_notifications")
+}
+
 // Approvals (Phase 9): durable human-in-the-loop. A Confirm verdict parks
 // the action HERE instead of dying in a response body — the phone (or any
 // client) approves later, and only then does the tool run.

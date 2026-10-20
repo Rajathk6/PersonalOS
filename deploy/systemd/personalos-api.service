@@ -9,6 +9,8 @@ WorkingDirectory=%h/Personal/Projects/personalOS
 Environment=DATABASE_URL=postgresql://personalos:personalos@localhost:5433/personalos
 ExecStartPre=/usr/bin/docker compose up -d db
 ExecStart=/usr/bin/npm run dev -w @personalos/api
+# Wake-up catch-up: harvest official sources once the laptop is back.
+ExecStartPost=%h/Personal/Projects/personalOS/scripts/boot-catchup.sh
 Restart=always
 RestartSec=10
 

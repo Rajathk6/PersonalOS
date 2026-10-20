@@ -1,0 +1,13 @@
+[Unit]
+Description=PersonalOS job-alert harvest (daily, plus once after boot)
+
+[Timer]
+OnCalendar=*-*-* 07:30:00
+# Catch-up when the laptop was off at 07:30 — the reason the always-on
+# middleman exists; this is the laptop-side safety net.
+Persistent=true
+RandomizedDelaySec=300
+Unit=personalos-harvest.service
+
+[Install]
+WantedBy=timers.target

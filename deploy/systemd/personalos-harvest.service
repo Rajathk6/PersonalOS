@@ -1,0 +1,16 @@
+[Unit]
+Description=PersonalOS job-alert harvest (official sources)
+After=network-online.target docker.service personalos-api.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Personal/Projects/personalOS
+Environment=PERSONALOS_API=http://127.0.0.1:3000
+ExecStart=%h/Personal/Projects/personalOS/scripts/harvest.sh --skip-apply
+# A blocked source must not fail the run: the script reports and continues.
+SuccessExitStatus=0
+TimeoutStartSec=600
+
+[Install]
+WantedBy=timers.target

@@ -33,12 +33,13 @@ export class ToolRegistry {
     return only;
   }
 
-  list(): { name: string; version: string; description: string; risk: string }[] {
+  list(): { name: string; version: string; description: string; risk: string; inputSchema: unknown }[] {
     return [...this.entries.values()].map((t) => ({
       name: t.name,
       version: t.version,
       description: t.description,
       risk: t.risk,
+      inputSchema: t.inputSchema,
     }));
   }
 }
