@@ -5,51 +5,63 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PersonalOS</title>
 <style>
-  body { font-family: system-ui, sans-serif; margin: 0; padding: 12px; background: #111; color: #eee; }
-  h1 { font-size: 1.3em; margin: 0 0 8px; }
-  .card { background: #1c1c1c; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
-  .card h2 { font-size: 1em; margin: 0 0 8px; color: #9cf; }
-  .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95em; }
-  button { font-size: 1.05em; padding: 12px 18px; margin: 4px 8px 4px 0; border: 0; border-radius: 8px; }
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 10px; background: #0f0f0f; color: #eee; }
+  h1 { font-size: 1.15em; margin: 0 0 8px; }
+  h2 { font-size: .95em; margin: 0 0 8px; color: #8cf; }
+  .card { background: #1a1a1a; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+  .row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; font-size: .92em; }
+  .dim { color: #888; font-size: .82em; }
+  button { font-size: .95em; padding: 9px 14px; border: 0; border-radius: 8px; }
   .approve { background: #2a7; color: #fff; }
   .deny { background: #a33; color: #fff; }
-  .refresh { background: #357; color: #fff; width: 100%; }
-  .dim { color: #888; font-size: 0.85em; }
-  #tokenbox input { width: 70%; padding: 10px; font-size: 1em; }
-  #chatlog { max-height: 40vh; overflow-y: auto; margin-bottom: 8px; }
+  a { color: #8cf; }
+  #tokenbox input, #chattext { width: 100%; box-sizing: border-box; padding: 11px; font-size: 1em;
+    background: #222; color: #eee; border: 1px solid #444; border-radius: 8px; }
+  #chatlog { max-height: 52vh; overflow-y: auto; }
   #chatlog .u { text-align: right; margin: 6px 0; }
-  #chatlog .u span { background: #357; border-radius: 10px; padding: 8px 12px; display: inline-block; max-width: 85%; }
+  #chatlog .u span { background: #2c5a8f; border-radius: 10px; padding: 8px 12px; display: inline-block; max-width: 88%; }
   #chatlog .a { margin: 6px 0; }
-  #chatlog .a span { background: #222; border: 1px solid #444; border-radius: 10px; padding: 8px 12px; display: inline-block; max-width: 85%; }
-  #chatrow { display: flex; gap: 8px; }
-  #chatrow input { flex: 1; }
-  #chatrow button { width: auto; margin: 0; }
-  .card input, .card select { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1em; margin-bottom: 8px; background: #222; color: #eee; border: 1px solid #444; border-radius: 8px; }
-  .set { background: #2a7; color: #fff; width: 100%; }
-  #remmsg { min-height: 1.4em; }
+  #chatlog .a span { background: #222; border: 1px solid #3a3a3a; border-radius: 10px; padding: 8px 12px; display: inline-block; max-width: 88%; }
+  #chatrow { display: flex; gap: 6px; margin-top: 8px; }
+  #chatrow button { white-space: nowrap; }
+  .hint { font-size: .78em; color: #777; margin-top: 6px; }
 </style>
 </head>
 <body>
 <h1>PersonalOS</h1>
+
 <div id="tokenbox" class="card" style="display:none">
   <h2>API token</h2>
   <input id="token" type="password" placeholder="paste API token">
   <button class="approve" onclick="saveToken()">Save</button>
 </div>
-<div class="card"><h2>Status</h2><div id="health" class="dim">loading…</div></div>
-<div class="card"><h2>Chat</h2>
-<div id="chatlog"></div>
-<div id="chatrow"><input id="chattext" type="text" placeholder="say anything: remind me at 7am to… · note that… · spent ₹… on…">
-<button class="set" onclick="sendChat()">Send</button></div>
-<div class="dim">One conversation — it figures out reminders, notes, money, checks. Approvals still ask you above.</div>
+
+<!-- THE one area. Everything is a conversation. -->
+<div class="card">
+  <h2>Ask anything</h2>
+  <div id="chatlog"></div>
+  <div id="chatrow">
+    <input id="chattext" type="text" placeholder="remind me at 7am to… · note that… · watch this site for… · what is this link?">
+    <button class="approve" onclick="sendChat()">Send</button>
+  </div>
+  <div class="hint">Paste a link and ask about it. Say "notify me when…&quot; to set a watch. It uses tools on its own.</div>
 </div>
-<div class="card"><h2>Needs your approval <span id="acount"></span></h2><div id="approvals"></div></div>
-<div class="card"><h2>Job openings <span id="jcount"></span></h2><div id="jobfeed" class="dim">loading…</div>
-<div class="dim">Official sources only (ssc.gov.in, rrb.gov.in, upsc.gov.in…). Your profile decides what is shown.</div>
+
+<div class="card">
+  <h2>Kept you posted <span id="acount"></span></h2>
+  <div id="alerts" class="dim">loading…</div>
 </div>
-<div class="card"><h2>Recent tasks</h2><div id="tasks"></div></div>
-<div class="card"><h2>Money</h2><div id="money" class="dim">loading…</div></div>
-<div><button class="refresh" onclick="load()">Refresh</button></div>
+
+<div class="card">
+  <h2>Needs your approval <span id="pcount"></span></h2>
+  <div id="approvals"></div>
+</div>
+
+<div class="card">
+  <h2>Status</h2>
+  <div id="health" class="dim">loading…</div>
+</div>
+
 <script>
 let token = localStorage.getItem("pos_token") || "";
 if (!token) document.getElementById("tokenbox").style.display = "block";
@@ -62,63 +74,6 @@ function saveToken() {
 async function api(path, opts) {
   const r = await fetch(path, { ...(opts || {}), headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json", ...((opts && opts.headers) || {}) } });
   return r.json();
-}
-async function load() {
-  try {
-    const h = await api("/health");
-    document.getElementById("health").textContent =
-      `db ${h.db} · queue ${h.queue} · worker ${h.worker} · scheduler ${h.scheduler} · models ${(h.models || []).join(",")}`;
-    const a = await api("/approvals?status=pending");
-    document.getElementById("acount").textContent = `(${a.approvals.length})`;
-    document.getElementById("approvals").innerHTML = a.approvals.length === 0
-      ? '<span class="dim">nothing waiting</span>'
-      : a.approvals.map(x =>
-          `<div class="row"><span>${x.toolName}<br><span class="dim">${x.reason}</span></span>
-           <span><button class="approve" onclick="resolve('${x.id}',true)">Yes</button><button class="deny" onclick="resolve('${x.id}',false)">No</button></span></div>`
-        ).join("");
-    const t = await api("/tasks?state=done");
-    const q = await api("/tasks?state=queued");
-    const rems = q.tasks
-      .filter(x => x.type === "reminder.send")
-      .map(x => `<div class="row"><span>⏰ ${(x.input && x.input.text) || x.type}<br><span class="dim">${new Date(x.notBefore).toLocaleString()}</span></span>
-        <span><button class="deny" onclick="cancelReminder('${x.id}')">✕</button></span></div>`)
-      .join("");
-    document.getElementById("tasks").innerHTML =
-      `<div class="row"><span>queued</span><b>${q.tasks.length}</b></div>` + rems +
-      t.tasks.slice(0, 5).map(x => `<div class="row"><span>${x.type}</span><span class="dim">${x.state}</span></div>`).join("");
-    const m = await api("/finance/summary");
-    document.getElementById("money").textContent = `net ${m.netWorth} · spent ${m.monthSpend}`;
-    const feed = await api("/alerts?minScore=20&limit=10");
-    const ns = feed.notifications || [];
-    document.getElementById("jcount").textContent = `(${ns.length})`;
-    document.getElementById("jobfeed").innerHTML = ns.length === 0
-      ? '<span class="dim">nothing matching your profile yet — run a harvest</span>'
-      : ns.map(n =>
-          `<div class="row"><span><b>${n.title.slice(0, 90)}</b><br>
-            <span class="dim">${n.sourceOrg} · ${n.eligibility} (${n.score})</span><br>
-            <span class="dim">${(n.reasons || []).join("; ").slice(0, 120)}</span></span>
-           <span><a href="${n.applyUrl || n.sourceUrl}" target="_blank" style="color:#9cf">apply</a><br>
-           <a href="${n.sourceUrl}" target="_blank" class="dim" style="color:#888">notice</a></span></div>`
-        ).join("");
-  } catch (e) {
-    document.getElementById("health").textContent = "unreachable — start the API";
-  }
-}
-async function resolve(id, ok) {
-  try {
-    await api(`/approvals/${id}/${ok ? "approve" : "deny"}`, { method: "POST", body: JSON.stringify({ by: "phone" }) });
-  } catch (e) {
-    document.getElementById("acount").textContent = "(tap failed — hit Refresh)";
-  }
-  load();
-}
-async function cancelReminder(id) {
-  try {
-    await api(`/tasks/${id}/cancel`, { method: "POST", body: "{}" });
-  } catch (e) {
-    // fall through to reload — the list shows the truth either way
-  }
-  load();
 }
 function bubble(who, text) {
   const log = document.getElementById("chatlog");
@@ -141,15 +96,13 @@ async function sendChat() {
   try {
     const r = await api("/agent/chat", { method: "POST", body: JSON.stringify({ message: text }) });
     if (r.error) { waiting.textContent = "server said: " + (r.message || r.error); return; }
-    for (let i = 0; i < 90; i++) {
-      await new Promise(rr => setTimeout(rr, 10000));
+    for (let i = 0; i < 120; i++) {
+      await new Promise(rr => setTimeout(rr, 8000));
       const t = await api(`/tasks/${r.id}`);
       if (t.state === "done") {
         const out = t.output || {};
-        waiting.textContent = out.answer || "(done, no answer)";
-        if (out.approvals && out.approvals.length > 0) {
-          waiting.textContent += " — check Needs your approval above ☝️";
-        }
+        waiting.textContent = out.answer || "(done)";
+        if (out.approvals && out.approvals.length > 0) waiting.textContent += " — see the approval below";
         load();
         return;
       }
@@ -157,14 +110,56 @@ async function sendChat() {
         waiting.textContent = "it failed — " + (((t.output || {}).answer) || t.state);
         return;
       }
-      waiting.textContent = `working on it… (${t.state}, step ${((t.output || {}).steps) || "?"})`;
+      waiting.textContent = `working on it… (${t.state})`;
     }
-    waiting.textContent = "still working — check Recent tasks";
+    waiting.textContent = "still working — check back in a bit";
   } catch (e) {
-    waiting.textContent = "could not reach server — hit Refresh";
+    waiting.textContent = "could not reach server — check the laptop";
   }
 }
 document.getElementById("chattext").addEventListener("keydown", e => { if (e.key === "Enter") sendChat(); });
+
+async function load() {
+  try {
+    const h = await api("/health");
+    document.getElementById("health").textContent =
+      `db ${h.db} · queue ${h.queue} · worker ${h.worker} · scheduler ${h.scheduler} · models ${(h.models || []).join(",")}`;
+  } catch (e) {
+    document.getElementById("health").textContent = "unreachable — is the API running on the laptop?";
+  }
+  try {
+    const a = await api("/approvals?status=pending");
+    document.getElementById("pcount").textContent = `(${a.approvals.length})`;
+    document.getElementById("approvals").innerHTML = a.approvals.length === 0
+      ? '<span class="dim">nothing waiting</span>'
+      : a.approvals.map(x =>
+          `<div class="row"><span>${x.toolName}<br><span class="dim">${x.reason}</span></span>
+           <span><button class="approve" onclick="resolve('${x.id}',true)">Yes</button><button class="deny" onclick="resolve('${x.id}',false)">No</button></span></div>`
+        ).join("");
+  } catch (e) { /* offline */ }
+  try {
+    const f = await api("/alerts?limit=15");
+    const ns = f.notifications || [];
+    document.getElementById("acount").textContent = `(${ns.length})`;
+    document.getElementById("alerts").innerHTML = ns.length === 0
+      ? '<span class="dim">nothing yet — tell it what to keep an eye on</span>'
+      : ns.map(n =>
+          `<div class="row"><span><b>${n.title.slice(0, 90)}</b><br>
+            <span class="dim">${n.source}${n.eligibility && n.eligibility !== "watch" ? " · " + n.eligibility : ""}</span></span>
+           <span><a href="${n.applyUrl || n.sourceUrl}" target="_blank">open</a></span></div>`
+        ).join("");
+  } catch (e) { /* offline */ }
+}
+async function resolve(id, ok) {
+  try {
+    await api(`/approvals/${id}/${ok ? "approve" : "deny"}`, { method: "POST", body: JSON.stringify({ by: "phone" }) });
+  } catch (e) {
+    document.getElementById("pcount").textContent = "(tap failed — try again)";
+  }
+  load();
+}
+load();
+setInterval(load, 30000);
 </script>
 </body>
 </html>

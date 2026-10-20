@@ -83,6 +83,30 @@ export function pickModel(models: ModelRegistry, defaultModel: string): { id: st
   return { id: meta.id, provider: models.get(meta.id).provider };
 }
 
+// Fallback chain: if the preferred model cannot even load (RAM), try the
+// next registered local model before giving up. A laptop with a browser open
+// often cannot hold the bigger model — but a smaller one still works.
+export async function generateWithFallback(
+  models: ModelRegistry,
+  preferredId: string,
+  request: { messages: { role: string; content: string }[]; maxTokens?: number; modelId?: string },
+): Promise<{ text: string; modelId: string }> {
+  const candidates = [preferredId, ...models.list().map((m) => m.id)].filter(
+    (id, i, arr) => arr.indexOf(id) === i,
+  );
+  let lastError: unknown;
+  for (const id of candidates) {
+    try {
+      const provider = models.get(id).provider;
+      const res = await provider.generate({ ...request, modelId: request.modelId ?? id });
+      return { text: res.text, modelId: id };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("no model available");
+}
+
 // Planner role: goal -> child tasks. Creates real queued tasks and returns
 // their ids; the worker loop (not the planner) runs them.
 export function agentRunHandler(deps: AgentDeps): TaskHandler {
@@ -159,6 +183,19 @@ export function agentChatHandler(deps: AgentDeps): TaskHandler {
     }
     const picked = pickModel(deps.models, deps.defaultModel);
     const provider = deps.models.get(picked.id).provider;
+    // A provider that falls back to a smaller local model when the preferred
+    // one cannot load (RAM) — the chat must not die on a busy laptop.
+    const resilient: ModelProvider = {
+      id: `${picked.id}+fallback`,
+      metadata: provider.metadata,
+      generate: async (req) => {
+        const r = await generateWithFallback(deps.models, picked.id, {
+          messages: req.messages,
+          ...(req.maxTokens !== undefined ? { maxTokens: req.maxTokens } : {}),
+        });
+        return { text: r.text };
+      },
+    };
     const catalog: ChatTool[] = deps.tools.list().map((t) => ({
       name: t.name,
       description: t.description,
@@ -176,7 +213,7 @@ export function agentChatHandler(deps: AgentDeps): TaskHandler {
         return turns;
       });
     const outcome = await runChatLoop({
-      model: provider,
+      model: resilient,
       modelId: picked.id,
       goal: parsed.data.message,
       history,

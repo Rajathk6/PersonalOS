@@ -12,6 +12,7 @@ import {
   OllamaProvider,
   OpenRouterProvider,
   discoverOllama,
+  qwen25_15b,
   qwen25_3b,
 } from "@personalos/models";
 import { MemoryStore } from "@personalos/memory";
@@ -33,6 +34,8 @@ import {
 } from "@personalos/jobs";
 import { jobsAlertRouter } from "./jobs-alerts.js";
 import { alertFeedRouter } from "./alert-feed.js";
+import { WatchStore, watchTools } from "@personalos/watches";
+import { watchesRouter } from "./watches.js";
 import { Scheduler } from "@personalos/scheduler";
 import {
   DefaultPermissionEngine,
@@ -113,7 +116,10 @@ export async function bootstrap(
   // system still runs — and say so loudly.
   const discovered = await discoverOllama(opts.ollamaUrl);
   if (discovered.length === 0) {
+    // Nothing answered — register the static catalog (both sizes) so the
+    // system still runs, and say so loudly.
     models.register({ metadata: qwen25_3b, provider: ollama });
+    models.register({ metadata: qwen25_15b, provider: ollama });
     logger.warn("model discovery found nothing; using static catalog fallback");
   } else {
     for (const meta of discovered) models.register({ metadata: meta, provider: ollama });
@@ -163,6 +169,8 @@ export async function bootstrap(
   for (const tool of financeToolList) toolRegistry.register(tool);
   const jobsStore = new JobsStore(prisma);
   const notificationStore = new NotificationStore(prisma);
+  const watchStore = new WatchStore(prisma);
+  for (const tool of watchTools(watchStore)) toolRegistry.register(tool);
   const jobsToolList = jobsTools(jobsStore, toolExecutor);
   for (const tool of jobsToolList) toolRegistry.register(tool);
   const capabilities = new CapabilityRegistry(async (manifest, enabled) => {
@@ -255,7 +263,8 @@ export async function bootstrap(
         }
       },
     }),
-    alertFeed: alertFeedRouter({ prisma, notifications: notificationStore, memory }),
+    alertFeed: alertFeedRouter({ prisma, notifications: notificationStore, memory, watches: watchStore }),
+    watches: watchesRouter(watchStore),
     builder: builderRouter(builderDeps),
     workers: workerRouter({ prisma, store, queue, tokens: opts.workerTokens }),
     toolRun: toolRunRouter(toolExecutor),

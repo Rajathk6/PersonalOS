@@ -19,6 +19,10 @@ const DEFAULTS: PolicyRule[] = [
   { tool: "finance.record_income", verdict: "Allowed", reason: "reversible money record, no movement" },
   { tool: "finance.summary", verdict: "Allowed", reason: "read-only analysis" },
   { tool: "jobs.check", verdict: "Allowed", reason: "public fetch + reversible finding records" },
+  { tool: "watch.create", verdict: "Allowed", reason: "creates a read-only watch, no side effect" },
+  { tool: "watch.check", verdict: "Allowed", reason: "reads public pages" },
+  { tool: "watch.list", verdict: "Allowed", reason: "reads user's own watches" },
+  { tool: "page.read", verdict: "Allowed", reason: "reads a page the user asked about" },
   { tool: "filesystem.delete", verdict: "Confirm", reason: "deletion needs a human" },
   { tool: "shell.execute", verdict: "Confirm", reason: "shell always needs a human unless denied outright" },
 ];
@@ -80,4 +84,6 @@ export const KNOWN_PERMISSIONS = [
   "finance.write",
   "jobs.read",
   "jobs.write",
+  "watch.read",
+  "watch.write",
 ];
