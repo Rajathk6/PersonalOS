@@ -9,6 +9,11 @@ const ChatResponseSchema = z.object({
 export interface OllamaProviderOptions {
   baseUrl: string; // injected from config; never hard-coded, never localhost-assumed here
   timeoutMs: number;
+  // KV-cache size. A 32k-context model needs ~2.7GB just for the cache on a
+  // 12GB laptop that is also running a browser — the model then refuses to
+  // load ("model request too large for system"). 4k context is plenty for
+  // our short prompts and leaves RAM for everything else.
+  numCtx?: number;
 }
 
 export class ModelError extends Error {
@@ -53,7 +58,10 @@ export class OllamaProvider implements ModelProvider {
           messages: request.messages,
           stream: false,
           // Latency/cost control (router concerns): callers cap output length.
-          ...(request.maxTokens !== undefined ? { options: { num_predict: request.maxTokens } } : {}),
+          options: {
+            num_ctx: this.opts.numCtx ?? 4096,
+            ...(request.maxTokens !== undefined ? { num_predict: request.maxTokens } : {}),
+          },
         }),
         signal: controller.signal,
       });

@@ -10,4 +10,4 @@ export type { BenchmarkTask, BenchmarkResult, BenchmarkReport } from "./benchmar
 export { recommend } from "./recommend.js";
 export type { RankedModel } from "./recommend.js";
 export { BenchmarkStore } from "./benchmark-store.js";
-export { qwen25_3b } from "./catalog.js";
+export { qwen25_3b, qwen25_15b } from "./catalog.js";

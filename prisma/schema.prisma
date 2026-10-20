@@ -229,6 +229,47 @@ model JobNotification {
   @@map("job_notifications")
 }
 
+// Watches (Phase 14): the GENERIC "keep an eye on this" primitive. Government
+// jobs are ONE flavour of a watch; so are new releases on a vendor page, a
+// competitor's blog, a results page. The user creates them from chat,
+// whenever they want, and can change or drop them at any time.
+model Watch {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  targets         String[]  @default([])
+  terms           String[]  @default([])
+  intervalMinutes Int       @default(0) @map("interval_minutes")
+  allowedDomains  String[]  @default([]) @map("allowed_domains")
+  extra           Json      @default("{}") @db.JsonB
+  enabled         Boolean   @default(true)
+  lastCheckedAt   DateTime? @map("last_checked_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  items WatchItem[]
+
+  @@map("watches")
+}
+
+// Items found by a watch. contentHash dedups across runs; the feed shows
+// anything not yet acknowledged.
+model WatchItem {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  watchId     String    @map("watch_id") @db.Uuid
+  watch       Watch     @relation(fields: [watchId], references: [id], onDelete: Cascade)
+  contentHash String    @unique @map("content_hash")
+  title       String
+  url         String
+  summary     String?
+  extra       Json      @default("{}") @db.JsonB
+  alertedAt   DateTime? @map("alerted_at") @db.Timestamptz(6)
+  foundAt     DateTime  @default(now()) @map("found_at") @db.Timestamptz(6)
+
+  @@index([watchId, foundAt(sort: Desc)], name: "watch_items_watch_time")
+  @@index([alertedAt, foundAt(sort: Desc)], name: "watch_items_feed")
+  @@map("watch_items")
+}
+
 // Approvals (Phase 9): durable human-in-the-loop. A Confirm verdict parks
 // the action HERE instead of dying in a response body — the phone (or any
 // client) approves later, and only then does the tool run.
