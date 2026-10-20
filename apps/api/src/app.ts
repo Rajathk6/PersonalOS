@@ -23,6 +23,8 @@ export interface AppDeps {
   memory: Router;
   finance: Router;
   jobs: Router;
+  jobAlerts: Router;
+  alertFeed: Router;
   builder: Router;
   workers: Router;
   toolRun: Router;
@@ -79,6 +81,8 @@ export function createApp(deps: AppDeps): Express {
   app.use("/memory", deps.memory);
   app.use("/finance", deps.finance);
   app.use("/jobs", deps.jobs);
+  app.use("/job-alerts", deps.jobAlerts);
+  app.use("/alerts", deps.alertFeed);
   app.use("/builder", deps.builder);
   app.use("/workers", deps.workers);
   app.use("/tools", deps.toolRun);

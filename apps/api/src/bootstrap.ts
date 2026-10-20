@@ -25,11 +25,14 @@ import {
 } from "@personalos/finance";
 import {
   JobsStore,
+  NotificationStore,
   jobsHandlers,
   jobsManifest,
   jobsRouter,
   jobsTools,
 } from "@personalos/jobs";
+import { jobsAlertRouter } from "./jobs-alerts.js";
+import { alertFeedRouter } from "./alert-feed.js";
 import { Scheduler } from "@personalos/scheduler";
 import {
   DefaultPermissionEngine,
@@ -159,6 +162,7 @@ export async function bootstrap(
   const financeToolList = financeTools(financeStore);
   for (const tool of financeToolList) toolRegistry.register(tool);
   const jobsStore = new JobsStore(prisma);
+  const notificationStore = new NotificationStore(prisma);
   const jobsToolList = jobsTools(jobsStore, toolExecutor);
   for (const tool of jobsToolList) toolRegistry.register(tool);
   const capabilities = new CapabilityRegistry(async (manifest, enabled) => {
@@ -235,6 +239,23 @@ export async function bootstrap(
     memory: memoryRouter(memory),
     finance: financeRouter(financeStore, toolExecutor),
     jobs: jobsRouter(jobsStore, queue),
+    jobAlerts: jobsAlertRouter({
+      prisma,
+      notifications: notificationStore,
+      memory,
+      onNewNotifications: async (items) => {
+        // A new official opening becomes a task the user will see: the
+        // dashboard feed reads notifications, the task keeps it auditable.
+        for (const item of items) {
+          await queue.enqueue({
+            type: "job.alert",
+            input: { text: item.title, url: item.url, source: item.sourceOrg },
+            priority: 0,
+          });
+        }
+      },
+    }),
+    alertFeed: alertFeedRouter({ prisma, notifications: notificationStore, memory }),
     builder: builderRouter(builderDeps),
     workers: workerRouter({ prisma, store, queue, tokens: opts.workerTokens }),
     toolRun: toolRunRouter(toolExecutor),

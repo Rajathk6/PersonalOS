@@ -21,6 +21,7 @@
     "@personalos/tools": "0.0.0",
     "@prisma/client": "^6.19.3",
     "express": "^4.19.2",
+    "pino": "^9.4.0",
     "zod": "^3.23.8"
   }
 }

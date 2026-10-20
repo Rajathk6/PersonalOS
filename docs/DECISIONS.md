@@ -206,6 +206,12 @@ Decision: (1) User phone = UI only, own network, never touches laptop directly. 
 Why: isolation was the goal; reachability tools (Tailscale) are plumbing, not architecture. The distribution mechanism (tokens, leases, idempotency, capability matching) already supports a new node shape — no rewrite.
 Consequence: execution starts tomorrow with (a) middleman device assessment, (b) SQLite↔Postgres sync protocol design, (c) SERVER_MODE config on laptop. Prior Tailscale-only guidance demoted to plumbing option.
 
+## 2026-10-11 — Job alerts: official-source harvesting with an authenticity gate
+Context: First MAIN goal — keep finding eligible, open government jobs for the user's field, with authentic sources and authentic application links, and keep fetching even when the laptop sleeps.
+Decision: (1) Source registry declares publisher + domain allowlist; a harvested URL outside that allowlist is DROPPED (media/blog/aggregator links can never enter). (2) Harvesters: RSS parse, HTML listing link extraction, JSON API mapping (per-source). Nav/key/result words excluded — precision over recall. (3) Dedup by contentHash(title+url) so the same circular is never re-alerted. (4) Apply link extracted from the OFFICIAL detail page, same-domain enforced. (5) Eligibility = deterministic profile match (field/degree/year/age/category) with reasons; no model in the match path. (6) Always-on split: tiny harvester CLI (scripts/harvest.sh) runs on ANY node device and PUSHES to the laptop's /job-alerts/intake; laptop does storage, matching, alerting. Laptop side: systemd timer daily + ExecStartPost boot catch-up.
+Why: "authentic source + authentic application link" is a hard requirement, and the user's field is engineering, not general news.
+Consequence: per-source adapters need tuning on the USER's network (my sandbox can only reach UPSC/NITI; SSC/RRB/IBPS blocked here but fine on their WiFi). Profile lives in memory as a keyed user fact.
+
 ## 2026-10-09 — Test pass v0.3: 3 real bugs from 71 tests (write-first works)
 Context: First full run of everything written since Phase 5: 68/71.
 Decision: fix all three: (1) /health lost its `worker` key in a later edit — restored (a dashboard consumer would have broken silently). (2) Capability test regex didn't match the code's actual error text — aligned to the contract message. (3) Scheduler fake re-filtered once at setup — findMany mock now filters per call like Postgres.

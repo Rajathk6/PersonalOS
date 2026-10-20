@@ -140,3 +140,8 @@
 - Gate: typecheck ✅ lint ✅ 36/36 ✅ re-run on release branch; 1B kill -9 evidence already on develop.
 - `main` = docs + Phase 0 + Phase 1A task slice (PRs #1–#4, #6–#7), tagged v0.2. (PR #5 was the v0.1 release.)
 - Next: Phase 2 — Ollama provider + router (no Ollama binary on laptop yet; ~2GB model over ~1Mbps needs an overnight pull).
+
+## 2026-10-11 — Job-alert pipeline (Phase 13) built
+- Scope: @personalos/jobs v0.2 (official source registry w/ domain allowlist, RSS+HTML+JSON harvesters, apply-link extraction, content-hash dedup, deterministic profile matching, notification store) + api /job-alerts (sources/profile/harvest/intake) + /alerts feed + dashboard "Job openings" card + job.alert task handler + standalone harvester CLI (packages/jobs/src/cli.ts, scripts/harvest.sh) + systemd harvest timer/service + boot catch-up script.
+- Evidence: typecheck ✅ lint ✅ 79/79 tests ✅ (18 files) + LIVE harvest: UPSC x2 + NITI RSS reachable → 62 items, 57 inserted / 33 dupes; RRB/IBPS unreachable FROM MY SANDBOX (fine on user's network); apply-link extraction found real official https://upsc.gov.in/apply-online; eligibility scored "Interview Schedule: Engineering Services (Main) Examination, 2026" = likely/90 with reasons; dashboard feed serves.
+- Open: per-source adapters for SSC/RRB/IBPS/state PSCs to be tuned on the user's network; "add source by URL" API still to build.
