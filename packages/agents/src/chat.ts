@@ -23,11 +23,27 @@ export interface ChatOutcome {
 
 const ActionSchema = z.union([
   z.object({ tool: z.string().min(1), input: z.unknown() }),
+  // OpenAI-style: {"tool": "...", "args": {...}} — stronger models reach for
+  // this habit, and refusing it wastes a whole step.
+  z.object({ tool: z.string().min(1), args: z.unknown() }),
+  z.object({ name: z.string().min(1), arguments: z.unknown() }),
   z.object({ answer: z.string().min(1) }),
   z.object({ askUser: z.string().min(1) }),
+  // A bare tool call at the top level.
+  z.object({ tool: z.string().min(1), thought: z.string().optional() }),
 ]);
 
-const StepSchema = z.object({ thought: z.string().min(1).max(1000), action: ActionSchema });
+function normalizeAction(action: unknown): { tool: string; input: unknown } | { answer: string } | { askUser: string } | null {
+  const parsed = ActionSchema.safeParse(action);
+  if (!parsed.success) return null;
+  const a = parsed.data as Record<string, unknown>;
+  if (typeof a["answer"] === "string") return { answer: a["answer"] };
+  if (typeof a["askUser"] === "string") return { askUser: a["askUser"] };
+  const tool = a["tool"] ?? a["name"];
+  if (typeof tool !== "string") return null;
+  const input = a["input"] ?? a["args"] ?? a["arguments"] ?? {};
+  return { tool, input };
+}
 
 // The orchestrator loop (spec §4, NORTH_STAR "feel simple"): one conversation,
 // many capabilities. The model reasons in small ReAct steps — think, act
@@ -88,16 +104,27 @@ User goal: ${opts.goal}`,
     const candidate = extractJson(res.text);
     if (candidate === null) {
       steps.push({ thought: "(unparseable reply)", action: { answer: "" }, observation: "model reply had no JSON" });
-      break;
+      continue;
     }
-    let step: z.infer<typeof StepSchema>;
+    let raw: unknown;
     try {
-      step = StepSchema.parse(JSON.parse(candidate) as unknown);
+      raw = JSON.parse(candidate) as unknown;
     } catch {
-      steps.push({ thought: "(invalid step)", action: { answer: "" }, observation: `rejected: ${candidate.slice(0, 200)}` });
-      break;
+      steps.push({ thought: "(invalid JSON)", action: { answer: "" }, observation: `rejected: ${candidate.slice(0, 200)}` });
+      continue;
     }
-    const action = step.action;
+    const rawRecord = (raw ?? {}) as Record<string, unknown>;
+    const stepThought = typeof rawRecord["thought"] === "string" ? rawRecord["thought"] : "";
+    const action = normalizeAction(rawRecord["action"] ?? raw);
+    if (action === null) {
+      steps.push({
+        thought: stepThought || "(invalid step)",
+        action: { answer: "" },
+        observation: `rejected: ${candidate.slice(0, 200)}`,
+      });
+      continue;
+    }
+    const step = { thought: stepThought || "(no thought)", action } as ChatStep;
     if ("answer" in action) {
       steps.push({ ...step, observation: "(final)" });
       return { answer: action.answer, steps, approvals, toolCalls: steps.filter((s) => "tool" in s.action).length };

@@ -74,31 +74,50 @@ export function agentRouter(deps: AgentDeps): Router {
   return router;
 }
 
-export function pickModel(models: ModelRegistry, defaultModel: string, mode: "local-first" | "cloud-first" | "local-only" = "local-first"): { id: string; provider: ModelProvider } {
-  // Router picks by hints; the configured default wins ties (local-first
-  // privacy out of the box, override via config with no code change).
-  // MODEL_MODE decides whether the free cloud tier may lead the ladder.
+export function pickModel(models: ModelRegistry, defaultModel: string, mode: "local-first" | "cloud-first" | "local-only" = "cloud-first"): { id: string; provider: ModelProvider } {
+  // The MODE decides which class leads; the configured default only breaks
+  // ties WITHIN that class (it must not drag a local model ahead of the
+  // cloud tier the user asked for).
   const all = [...models.list()];
   const cloud = all.filter((m) => m.availability === "cloud");
   const local = all.filter((m) => m.availability === "local");
-  const ordered =
-    mode === "cloud-first" ? [...cloud, ...local] : [...local, ...cloud];
-  ordered.sort((a, b) => (a.id === defaultModel ? -1 : b.id === defaultModel ? 1 : 0));
+  const classes = mode === "cloud-first" ? [cloud, local] : mode === "local-only" ? [local] : [local, cloud];
+  const ordered = classes.flatMap((group) =>
+    [...group].sort((a, b) => (a.id === defaultModel ? -1 : b.id === defaultModel ? 1 : 0)),
+  );
   const meta = route(ordered, { privacySensitive: mode !== "cloud-first" });
   return { id: meta.id, provider: models.get(meta.id).provider };
 }
 
-// Fallback chain: if the preferred model cannot even load (RAM), try the
-// next registered local model before giving up. A laptop with a browser open
-// often cannot hold the bigger model — but a smaller one still works.
+// The ladder order. Cloud first (default): the free API models are much
+// stronger than anything that fits in 12GB of RAM, and local is the
+// safety net for when the API is rate-limited, offline, or unkeyed.
+// local-first / local-only keep everything on the device.
+export function buildCandidateOrder(
+  models: ModelRegistry,
+  preferredId: string,
+  mode: "local-first" | "cloud-first" | "local-only",
+): string[] {
+  const all = models.list().map((m) => m.id);
+  const cloud = all.filter((id) => models.get(id).metadata.availability === "cloud");
+  const local = all.filter((id) => models.get(id).metadata.availability === "local");
+  const head = mode === "cloud-first" ? [...cloud, ...local] : [...local, ...cloud];
+  if (mode === "local-only") {
+    return [preferredId, ...local.filter((id) => id !== preferredId)];
+  }
+  return [preferredId, ...head.filter((id) => id !== preferredId)];
+}
+
+// Fallback chain: try the preferred model, then walk the ladder. A model
+// that cannot even load (RAM), a rate limit, or a dropped connection all
+// fall through to the next one instead of failing the task.
 export async function generateWithFallback(
   models: ModelRegistry,
   preferredId: string,
   request: { messages: { role: string; content: string }[]; maxTokens?: number; modelId?: string },
+  order?: string[],
 ): Promise<{ text: string; modelId: string }> {
-  const candidates = [preferredId, ...models.list().map((m) => m.id)].filter(
-    (id, i, arr) => arr.indexOf(id) === i,
-  );
+  const candidates = order ?? [preferredId, ...models.list().map((m) => m.id)];
   let lastError: unknown;
   for (const id of candidates) {
     try {
@@ -194,10 +213,15 @@ export function agentChatHandler(deps: AgentDeps): TaskHandler {
       id: `${picked.id}+fallback`,
       metadata: provider.metadata,
       generate: async (req) => {
-        const r = await generateWithFallback(deps.models, picked.id, {
-          messages: req.messages,
-          ...(req.maxTokens !== undefined ? { maxTokens: req.maxTokens } : {}),
-        });
+        const r = await generateWithFallback(
+          deps.models,
+          picked.id,
+          {
+            messages: req.messages,
+            ...(req.maxTokens !== undefined ? { maxTokens: req.maxTokens } : {}),
+          },
+          buildCandidateOrder(deps.models, picked.id, deps.modelMode),
+        );
         return { text: r.text };
       },
     };

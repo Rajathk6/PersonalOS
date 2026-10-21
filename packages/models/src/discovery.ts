@@ -110,6 +110,7 @@ export async function discoverOpenRouter(baseUrl: string, apiKey: string, timeou
         structuredOutput: true,
         reasoning: false,
         latencyClass: "cloud",
+        // pricing.prompt === "0" is OpenRouter's free marker.
         costClass: m.pricing.prompt === "0" ? "free" : "paid",
         availability: "cloud" as const,
       }));

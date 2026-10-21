@@ -17,6 +17,7 @@ export interface AppDeps {
   workerStatus: () => "enabled" | "disabled";
   schedulerStatus: () => "ready" | "disabled";
   modelIds: () => string[];
+  modelSummary: () => { mode: string; active: string; provider: string; cloudReady: boolean; ladder: string[] };
   tools: () => { name: string; version: string; description: string; risk: string }[];
   agent: Router;
   schedules: Router;
@@ -69,6 +70,7 @@ export function createApp(deps: AppDeps): Express {
           scheduler: deps.schedulerStatus(),
           worker: deps.workerStatus(),
           models: deps.modelIds(),
+          model: deps.modelSummary(),
           version,
         });
       })

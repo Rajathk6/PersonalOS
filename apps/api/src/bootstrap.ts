@@ -12,7 +12,8 @@ import {
   OllamaProvider,
   OpenRouterProvider,
   discoverOllama,
-  FREE_CLOUD_MODELS,
+  discoverOpenRouter,
+  FREE_CLOUD_PREFERENCE,
   qwen25_05b,
   qwen25_15b,
   qwen25_3b,
@@ -50,7 +51,7 @@ import {
 } from "@personalos/tools";
 import { createApp } from "./app.js";
 import { agentRouter } from "./agent.js";
-import { agentChatHandler } from "./agent.js";
+import { agentChatHandler, buildCandidateOrder, pickModel } from "./agent.js";
 import { approvalRouter } from "./approvals.js";
 import { builderProposeHandler, builderRouter } from "./builder.js";
 import { memoryRouter } from "./memory.js";
@@ -129,20 +130,33 @@ export async function bootstrap(
     for (const meta of discovered) models.register({ metadata: meta, provider: ollama });
   }
 
-  // The model ladder. Local models stay first (private, offline, free); the
-  // FREE cloud tier is registered as the safety net for when the laptop
-  // cannot hold a model at all (RAM) or for hard reasoning that a 1.5B
-  // cannot do. Nothing is switched automatically without the router's
-  // order — the fallback chain only engages AFTER a local attempt fails.
+  // The model ladder. Cloud first (default): the free API models are much
+  // stronger than anything that fits in 12GB of RAM, and the LOCAL models
+  // are the safety net (rate limit, no internet, no key).
+  // The free list is DISCOVERED live — OpenRouter's free tier changes
+  // weekly, so a hardcoded slug list goes stale (and did).
   if (openrouter !== null) {
-    for (const meta of FREE_CLOUD_MODELS) {
+    const cloudModels = await discoverOpenRouter(opts.openRouterUrl, opts.openRouterKey as string);
+    const free = cloudModels.filter((m) => m.costClass === "free");
+    const preferred = free
+      .slice()
+      .sort((a, b) => {
+        const ai = FREE_CLOUD_PREFERENCE.indexOf(a.id);
+        const bi = FREE_CLOUD_PREFERENCE.indexOf(b.id);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      })
+      .slice(0, 6);
+    for (const meta of preferred) {
       try {
         models.register({ metadata: meta, provider: openrouter });
       } catch {
-        // already registered (duplicate) — fine
+        // already registered — fine
       }
     }
-    logger.info({ cloud: FREE_CLOUD_MODELS.map((m) => m.id) }, "free cloud models registered");
+    logger.info(
+      { free: free.length, registered: preferred.map((m) => m.id) },
+      "free cloud models registered",
+    );
   }
   const benchmarks = new BenchmarkStore(prisma);
   logger.info({ models: models.list().map((m) => m.id) }, "models registered");
@@ -262,6 +276,16 @@ export async function bootstrap(
     workerStatus: () => (host === null ? "disabled" : "enabled"),
     schedulerStatus: () => (scheduler === null ? "disabled" : "ready"),
     modelIds: () => models.list().map((m) => m.id),
+    modelSummary: () => {
+      const active = pickModel(models, opts.defaultModel, opts.modelMode);
+      return {
+        mode: opts.modelMode,
+        active: active.id,
+        provider: models.get(active.id).metadata.availability,
+        cloudReady: opts.openRouterKey !== null,
+        ladder: buildCandidateOrder(models, active.id, opts.modelMode).slice(0, 6),
+      };
+    },
     tools: () => toolRegistry.list(),
     agent: agentRouter(handlerDeps),
     schedules: scheduleRouter(prisma),
