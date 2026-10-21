@@ -88,8 +88,8 @@ export function watchTools(store: WatchStore): (Tool & { version: string })[] {
           message: `${digest.title} (${digest.text.length} chars read)`,
           metadata: {
             title: digest.title,
-            text: digest.text.slice(0, 4000),
-            links: digest.links.slice(0, 40),
+            text: digest.text.slice(0, 2500),
+            links: digest.links.slice(0, 25),
             truncated: digest.truncated,
           },
         };

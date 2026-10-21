@@ -195,6 +195,16 @@ export function agentVerifyHandler(deps: AgentDeps): TaskHandler {
   };
 }
 
+// Compact arg spec for the prompt: the property names of the tool's input
+// schema ("url, text"). The model calls tools correctly with this alone —
+// full schemas tripled the prompt and slowed every turn.
+function argsHintOf(inputSchema: unknown): string {
+  if (typeof inputSchema !== "object" || inputSchema === null) return "";
+  const schema = inputSchema as { properties?: Record<string, unknown> };
+  const keys = Object.keys(schema.properties ?? {});
+  return keys.length === 0 ? "" : keys.join(", ");
+}
+
 // Conversational turn: one message in, an orchestrated loop, one answer out.
 // History comes from episodic chat records (not the request), tools from the
 // live registry, permission gates from the executor. Nothing is hard-coded
@@ -229,6 +239,7 @@ export function agentChatHandler(deps: AgentDeps): TaskHandler {
       name: t.name,
       description: t.description,
       inputSchema: t.inputSchema,
+      argsHint: argsHintOf(t.inputSchema),
     }));
     const past = await deps.memory.recall({ kind: "episodic", limit: 20 });
     const history = past

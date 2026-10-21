@@ -39,12 +39,47 @@ export interface PageDigest {
   text: string;
   links: { text: string; url: string }[];
   truncated: boolean;
+  rendered?: boolean; // true when a JS-shell page was rendered by the reader
 }
 
-export async function readPage(url: string, timeoutMs = 20000): Promise<PageDigest> {
+// Modern government sites are JavaScript apps: a plain fetch returns
+// "please enable JavaScript" and nothing useful. The reader proxy renders
+// the page to text. Trade-off, stated plainly: the URL passes through a
+// third party (only the address — we never send private pages there).
+const READER_PREFIX = "https://r.jina.ai/";
+
+async function tryReader(url: string, timeoutMs: number): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${READER_PREFIX}${url}`, {
+        signal: controller.signal,
+        headers: { "User-Agent": "PersonalOS/0.5 (page reader)" },
+      });
+      if (!res.ok) return null;
+      const text = await res.text();
+      // The reader answers with a JSON error object when it cannot render —
+      // that is NOT content and must not be handed to the model as a page.
+      if (text.trim() === "") return null;
+      if (text.trimStart().startsWith("{") && /"(AssertionFailureError|cause|status)/.test(text.slice(0, 400))) {
+        return null;
+      }
+      return text;
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return null;
+  }
+}
+
+// Read a page the user pasted and answer from it: title, cleaned text, and
+// the outgoing links. This is the "what is this link?" capability.
+export async function readPage(url: string, timeoutMs = 10000): Promise<PageDigest> {
   const html = await fetchText(url, timeoutMs);
   const title = stripTags(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? url);
-  const text = stripTags(html).slice(0, 8000);
+  const text = stripTags(html).slice(0, 3000);
   const links: { text: string; url: string }[] = [];
   const seen = new Set<string>();
   const re = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
@@ -62,7 +97,15 @@ export async function readPage(url: string, timeoutMs = 20000): Promise<PageDige
     seen.add(abs);
     links.push({ text: label, url: abs });
   }
-  return { url, title, text, links, truncated: text.length >= 8000 };
+  // JS shell? Try the renderer before giving the model an empty page.
+  const looksEmpty = text.length < 400 || /enable javascript|please enable|requires javascript/i.test(text);
+  if (looksEmpty) {
+    const rendered = await tryReader(url, Math.min(timeoutMs, 10000));
+    if (rendered !== null) {
+      return { url, title, text: rendered.slice(0, 3000), links, truncated: rendered.length > 3000, rendered: true };
+    }
+  }
+  return { url, title, text, links, truncated: text.length >= 3000 };
 }
 
 // One watch check: fetch the target(s), find items that look new, return

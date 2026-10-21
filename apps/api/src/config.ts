@@ -41,6 +41,11 @@ const EnvSchema = z.object({
   // WORKER_ENABLED (Boolean("false") is true, so explicit words only).
   SCHEDULER_ENABLED: z.enum(["true", "false"]).default("true").transform((v) => v === "true"),
   SCHEDULER_POLL_MS: z.coerce.number().int().positive().default(5000),
+  // Worker: how many tasks run at once, and the per-task wall-clock cap.
+  // Concurrency matters because one slow task used to block the whole queue
+  // (the user's chat waited minutes behind it).
+  WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(3),
+  TASK_DEADLINE_MS: z.coerce.number().int().min(0).default(120000),
   // Multi-node (Phase 8): "id:token,id:token" pairs for HTTP worker auth.
   // Direct-DB workers are gated by DB credentials instead; empty = HTTP
   // worker endpoints refuse everyone (fail closed).
@@ -71,6 +76,8 @@ export interface Config {
   workspaceDir: string;
   schedulerEnabled: boolean;
   schedulerPollMs: number;
+  workerConcurrency: number;
+  taskDeadlineMs: number;
   workerTokens: Map<string, string>;
   livenessSweepS: number;
   offlineAfterS: number;
@@ -118,6 +125,8 @@ function loadConfig(): Config {
     workspaceDir: env.WORKSPACE_DIR,
     schedulerEnabled: env.SCHEDULER_ENABLED,
     schedulerPollMs: env.SCHEDULER_POLL_MS,
+    workerConcurrency: env.WORKER_CONCURRENCY,
+    taskDeadlineMs: env.TASK_DEADLINE_MS,
     workerTokens: parseWorkerTokens(env.WORKER_TOKENS),
     livenessSweepS: env.LIVENESS_SWEEP_S,
     offlineAfterS: env.OFFLINE_AFTER_S,

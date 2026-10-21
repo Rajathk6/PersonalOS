@@ -6,6 +6,8 @@ export interface ChatTool {
   name: string;
   description: string;
   inputSchema: unknown;
+  /** Compact arg spec for the prompt, e.g. "url, text" — full schemas are too big. */
+  argsHint: string;
 }
 
 export interface ChatStep {
@@ -64,21 +66,36 @@ export async function runChatLoop(opts: {
     needsApproval?: boolean;
   }>;
   maxSteps?: number;
+  budgetMs?: number;
 }): Promise<ChatOutcome> {
-  const maxSteps = opts.maxSteps ?? 6;
+  const maxSteps = opts.maxSteps ?? 3;
+  // Wall-clock budget for the whole turn. Free-tier models queue, so a turn
+  // must never wander for minutes: when the budget runs out we answer with
+  // what we already know instead of hanging.
+  const budgetMs = opts.budgetMs ?? 30000;
+  const startedAt = Date.now();
   const steps: ChatStep[] = [];
   const approvals: string[] = [];
-  // Names + one-liners only: full input schemas would triple the prompt and
-  // OOM this laptop's CPU inference. Wrong inputs come back as observations
-  // (BAD_INPUT) and the loop self-corrects — cheaper than a giant prompt.
-  const catalog = opts.tools.map((t) => `- ${t.name}: ${t.description}`).join("\n");
+  // Names + a COMPACT arg spec. Full JSON schemas tripled the prompt (and
+  // OOM'd the small local model); one short line per tool is enough for the
+  // model to call it correctly.
+  const catalog = opts.tools.map((t) => `- ${t.name}(${t.argsHint}) — ${t.description}`).join("\n");
   const history = opts.history
-    .slice(-6)
-    .map((m) => `${m.role}: ${m.content.slice(0, 500)}`)
+    .slice(-4)
+    .map((m) => `${m.role}: ${m.content.slice(0, 300)}`)
     .join("\n");
 
   for (let i = 0; i < maxSteps; i++) {
+    if (Date.now() - startedAt > budgetMs) {
+      return {
+        answer: lastUsefulAnswer(steps),
+        steps,
+        approvals,
+        toolCalls: steps.filter((s) => "tool" in s.action).length,
+      };
+    }
     const transcript = steps
+      .slice(-2)
       .map((s, n) => `step${n + 1} thought: ${s.thought}\nstep${n + 1} result: ${s.observation ?? "(none)"}`)
       .join("\n");
     const res = await opts.model.generate({
@@ -93,7 +110,13 @@ Or finish: {"thought":"...","action":{"answer":"..."}}
 Or ask the user: {"thought":"...","action":{"askUser":"..."}}
 TOOLS:
 ${catalog}
-Rules: one tool per step. Chain results (use ids/outputs from earlier steps). "answer" ends the turn with the final message to the user. "askUser" only when truly blocked. Prior conversation:
+RULES:
+- If the message needs no tool (greetings, thanks, questions you can answer), reply with {"thought":"...","action":{"answer":"..."}} IMMEDIATELY. Never call a tool just to look busy.
+- Call ONE tool per step. Use the exact arg names shown above.
+- A link in the message: read it with page.read(url) before answering about it.
+- Chain results: use ids/outputs from earlier steps.
+- "answer" ends the turn with the final message to the user. "askUser" only when truly blocked.
+Prior conversation:
 ${history || "(none)"}
 So far this turn:
 ${transcript || "(first step)"}
@@ -126,8 +149,11 @@ User goal: ${opts.goal}`,
     }
     const step = { thought: stepThought || "(no thought)", action } as ChatStep;
     if ("answer" in action) {
+      const finalAnswer = action.answer.trim() === ""
+        ? (step.thought.trim() === "" ? "Done." : step.thought)
+        : action.answer;
       steps.push({ ...step, observation: "(final)" });
-      return { answer: action.answer, steps, approvals, toolCalls: steps.filter((s) => "tool" in s.action).length };
+      return { answer: finalAnswer, steps, approvals, toolCalls: steps.filter((s) => "tool" in s.action).length };
     }
     if ("askUser" in action) {
       steps.push({ ...step, observation: "(waiting on user)" });
@@ -156,5 +182,23 @@ User goal: ${opts.goal}`,
       return { answer: `I tried but kept failing: ${result.message}. Tell me how to proceed.`, steps, approvals, toolCalls: steps.filter((s) => "tool" in s.action).length };
     }
   }
-  return { answer: "I ran out of steps before finishing — tell me to continue or simplify.", steps, approvals, toolCalls: steps.filter((s) => "tool" in s.action).length };
+  return {
+    answer: lastUsefulAnswer(steps),
+    steps,
+    approvals,
+    toolCalls: steps.filter((s) => "tool" in s.action).length,
+  };
+}
+
+// When the loop ends without a final answer, the last tool result is still
+// worth saying out loud. "I ran out of steps" is a dead end for the user;
+// the actual finding is the answer.
+function lastUsefulAnswer(steps: ChatStep[]): string {
+  const withObservation = [...steps].reverse().find((s) => {
+    const o = s.observation ?? "";
+    return o !== "" && o !== "(final)" && o !== "(waiting on user)" && !o.startsWith("rejected");
+  });
+  const obs = withObservation?.observation ?? "";
+  if (obs === "") return "I couldn't finish that in time — try a simpler version of the request.";
+  return `Here's what I found: ${obs.slice(0, 900)}`;
 }

@@ -23,6 +23,8 @@ async function main(): Promise<void> {
     openRouterUrl: config.openRouterUrl,
     schedulerEnabled: config.schedulerEnabled,
     schedulerPollMs: config.schedulerPollMs,
+    workerConcurrency: config.workerConcurrency,
+    taskDeadlineMs: config.taskDeadlineMs,
     workerTokens: config.workerTokens,
     livenessSweepS: config.livenessSweepS,
     offlineAfterS: config.offlineAfterS,

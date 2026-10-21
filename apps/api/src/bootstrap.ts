@@ -78,6 +78,8 @@ export interface BootstrapOptions {
   openRouterUrl: string;
   schedulerEnabled: boolean;
   schedulerPollMs: number;
+  workerConcurrency: number;
+  taskDeadlineMs: number;
   workerTokens: Map<string, string>;
   livenessSweepS: number;
   offlineAfterS: number;
@@ -251,6 +253,8 @@ export async function bootstrap(
       pollMs: opts.pollMs,
       heartbeatSeconds: opts.heartbeatSeconds,
       handlers: allHandlers,
+      maxConcurrent: opts.workerConcurrency,
+      taskDeadlineMs: opts.taskDeadlineMs,
       onTaskError: (err, taskId) => logger.error({ err, taskId }, "worker task error"),
     });
     await host.start();

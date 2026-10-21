@@ -48,6 +48,8 @@ describe.skipIf(!TEST_URL)("task routes + worker slice", () => {
       openRouterUrl: "https://openrouter.ai/api/v1",
       schedulerEnabled: false,
       schedulerPollMs: 50,
+      workerConcurrency: 2,
+      taskDeadlineMs: 30000,
       workerTokens: new Map(),
       livenessSweepS: 60,
       offlineAfterS: 120,

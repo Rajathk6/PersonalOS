@@ -25,12 +25,14 @@ export class OpenRouterProvider implements ModelProvider {
   };
 
   constructor(
-    private readonly opts: { baseUrl: string; apiKey: string; timeoutMs: number },
+    // Cloud free tier queues HARD when busy: waiting 5 minutes for a queued
+    // model is worse than skipping to the next one. 45s keeps the chat snappy.
+    private readonly opts: { baseUrl: string; apiKey: string; timeoutMs: number; perCallTimeoutMs?: number },
   ) {}
 
   async generate(request: Parameters<ModelProvider["generate"]>[0]): Promise<ModelResponse> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.opts.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), this.opts.perCallTimeoutMs ?? this.opts.timeoutMs);
     try {
       const res = await fetch(`${this.opts.baseUrl}/chat/completions`, {
         method: "POST",
@@ -57,7 +59,7 @@ export class OpenRouterProvider implements ModelProvider {
     } catch (err) {
       if (err instanceof ModelError) throw err;
       if (err instanceof Error && err.name === "AbortError") {
-        throw new ModelError("MODEL_TIMEOUT", `openrouter timed out after ${this.opts.timeoutMs}ms`);
+        throw new ModelError("MODEL_TIMEOUT", `openrouter timed out after ${this.opts.perCallTimeoutMs ?? this.opts.timeoutMs}ms`);
       }
       throw new ModelError("MODEL_UNAVAILABLE", err instanceof Error ? err.message : "openrouter unreachable");
     } finally {

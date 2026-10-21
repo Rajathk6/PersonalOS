@@ -10,6 +10,10 @@ interface WorkerHostOptions {
   pollMs: number;
   heartbeatSeconds: number;
   handlers: Map<string, TaskHandler>;
+  // How many tasks may run at once (a slow task must not block the queue).
+  maxConcurrent?: number;
+  // Per-task wall-clock cap; 0 = no cap.
+  taskDeadlineMs?: number;
   // Crash barrier: a row deleted mid-run (or a DB blip between claim and
   // persist) must never escape as an unhandled rejection that kills the host.
   onTaskError?: (err: unknown, taskId: string | null) => void;
@@ -24,6 +28,7 @@ export class WorkerHost {
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private stopped = false;
   private ticking = false;
+  private readonly inFlight = new Set<Promise<void>>();
 
   constructor(
     private readonly db: PrismaClient,
@@ -60,6 +65,8 @@ export class WorkerHost {
     }).catch(() => undefined);
   }
   // Overlap guard: a slow handler must delay the next poll, never run twice.
+  // CONCURRENCY: several tasks may run at once, otherwise one slow task
+  // (a chat waiting on a slow model) blocks every other request behind it.
   private async tick(): Promise<void> {
     if (this.stopped || this.ticking) return;
     this.ticking = true;
@@ -75,14 +82,24 @@ export class WorkerHost {
       });
       if (task === null) return;
       taskId = task.id;
-      await this.run(task);
-    } catch (err) {
+      // Run in the background so the next poll can pick up more work; the
+      // in-flight set is bounded by maxConcurrent.
+      const run = this.run(task).finally(() => {
+        this.inFlight.delete(run);
+      });
+      this.inFlight.add(run);
+      if (this.inFlight.size >= (this.opts.maxConcurrent ?? 3)) {
+        await Promise.race(this.inFlight);
+      }    } catch (err) {
       this.opts.onTaskError?.(err, taskId);
     } finally {
       this.ticking = false;
     }
   }
 
+  // Per-task deadline: a task that exceeds it is failed fast (retryable) so
+  // it stops hogging a worker slot. Interactive work (chat) must never sit
+  // for minutes behind a slow model.
   private async run(task: Task): Promise<void> {
     const handler = this.opts.handlers.get(task.type);
     // Unknown type is a registration bug, not a transient fault: fail fast
@@ -97,7 +114,7 @@ export class WorkerHost {
       return;
     }
     try {
-      const output = await handler(task);
+      const output = await this.withDeadline(handler(task), this.opts.taskDeadlineMs ?? 0);
       await this.queue.complete(task.id, output);
     } catch (err) {
       await this.queue.fail(task.id, {
@@ -105,6 +122,23 @@ export class WorkerHost {
         retryable: true,
         message: err instanceof Error ? err.message : "handler threw",
       });
+    }
+  }
+
+  private async withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
+    if (!Number.isFinite(ms) || ms <= 0) return work;
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        work,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            reject(Object.assign(new Error(`task exceeded ${ms}ms deadline`), { code: "TASK_DEADLINE" }));
+          }, ms);
+        }),
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
     }
   }
 }
